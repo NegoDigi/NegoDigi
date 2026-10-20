@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["../app/register/*.tsx", "../components/admin-setup-requests.tsx", "../lib/account-setup-client.ts", "../lib/supabase/client.ts"],
+  "exclude": ["../node_modules"]
+}
