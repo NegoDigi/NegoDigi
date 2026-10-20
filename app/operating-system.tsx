@@ -8065,7 +8065,7 @@ export function OperatingSystem() {
         <ChevronRight className={`size-4 transition-transform ${sidebarCollapsed ? "" : "rotate-180"}`} />
       </button>
       <div className={`min-w-0 transition-[padding] duration-300 ${sidebarCollapsed ? "lg:pl-[76px]" : "lg:pl-[248px]"}`}>
-        <header className="app-header sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-white/[.05] bg-[#080b11]/90 px-4 backdrop-blur-xl sm:px-6">
+        <header className="app-header sticky top-0 z-50 flex h-16 items-center justify-between gap-3 border-b border-white/[.05] bg-[#080b11]/90 px-4 backdrop-blur-xl sm:px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
