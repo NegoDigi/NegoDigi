@@ -13,3 +13,13 @@ Para desplegar: reconstruir los 154 archivos de la fuente original de producció
 Pruebas: `tests/manual-bonus-adjustment.test.mjs`, `tests/bonus-service-usage.test.mjs` y verificación en Preview de TypeScript.
 
 No se crean movimientos reales hasta que un administrador pulse Guardar ajuste manual dentro de la web.
+## Publicación verificada
+- Despliegue de producción: dpl_AkTmR327pYmEhZCa85cJzEBGboE8.
+- Proyecto Vercel: negodigi-os (el mismo proyecto).
+- Dominio principal https://app.negodigi.com resuelve al nuevo despliegue READY.
+- Base intacta: 154 archivos de la fuente CLI original del 23/10; aplicados tres parches idempotentes.
+- Compilación Next.js y validación TypeScript correctas. Se conservan /editores y /trabaja-con-nosotros.
+- Pruebas lógicas del ajuste manual realizadas; sin errores de ejecución de servidor detectados en la ventana revisada.
+- Sin modificaciones de saldos ni movimientos Supabase durante el despliegue; solo se modificarán al usar el botón manual.
+- Rollback anterior: dpl_EkwogeFtqkFxidhoHFSqPF75wnPe.
+- Prueba visual y operación manual autenticada por un administrador: pendientes de confirmar desde su sesión.
