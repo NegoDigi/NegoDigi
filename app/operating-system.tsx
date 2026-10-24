@@ -1,4 +1,5 @@
 "use client";
+import { calculateBonusServiceUsage } from "@/lib/bonus-service-usage.mjs";
 import * as React from "react";
 import {
   Activity,
@@ -624,19 +625,14 @@ type Bonus = {
   delivery_frequency?: string | null;
   notes?: string | null;
 };
-type BonusServiceKey =
-  | "reels"
-  | "youtube"
-  | "thumbnails"
-  | "carousels"
-  | "automation"
-  | "other";
 type BonusServiceUsage = {
-  service: BonusServiceKey;
+  service: string;
   label: string;
   quantity: number;
   unitPrice: number;
-  /** Existing usage rows without service-level detail must remain in the total. */
+  /** Exact posted amount, even when the unit price changed mid-bono. */
+  amount?: number;
+  /** Real ledger consumption that is not itemizable (can indicate an inconsistency). */
   unattributedAmount?: number;
 };
 type BonusMovement = {
@@ -1448,145 +1444,26 @@ function number(
 ) {
   return Number(Array.isArray(value) ? value[0] || 0 : value || 0);
 }
-const bonusServiceDefinitions: Array<{
-  key: BonusServiceKey;
-  label: string;
-  quantityKey: string;
-  priceKey: string;
-}> = [
-  { key: "reels", label: "Reels", quantityKey: "reels", priceKey: "reelPrice" },
-  {
-    key: "youtube",
-    label: "YouTube",
-    quantityKey: "youtube",
-    priceKey: "youtubePrice",
-  },
-  {
-    key: "thumbnails",
-    label: "Miniaturas",
-    quantityKey: "thumbnails",
-    priceKey: "thumbnailPrice",
-  },
-  {
-    key: "carousels",
-    label: "Carruseles",
-    quantityKey: "carousels",
-    priceKey: "carouselPrice",
-  },
-  {
-    key: "automation",
-    label: "Automatización",
-    quantityKey: "automation",
-    priceKey: "automationPrice",
-  },
-  {
-    key: "other",
-    label: "Otros",
-    quantityKey: "other",
-    priceKey: "otherPrice",
-  },
-];
 function bonusServiceUsage(
   bonus: Bonus,
   movements: BonusMovement[],
+  rates: ClientRate[] = [],
+  complementaryServices: Array<{
+    id: string;
+    bonus_id: string | null;
+    service_name: string;
+    client_price: number | string | null;
+  }> = [],
 ): BonusServiceUsage[] {
-  const usage = new Map<
-    BonusServiceKey,
-    { quantity: number; unitPrice: number }
-  >();
-  bonusServiceDefinitions.forEach(({ key }) =>
-    usage.set(key, { quantity: 0, unitPrice: 0 }),
-  );
-  let unattributedAmount = 0;
-  const related = movements
-    .filter(
-      (movement) =>
-        movement.bonus_id === bonus.id && movement.movement_type === "usage",
-    )
-    .sort((a, b) =>
-      (a.created_at || a.occurred_on || "").localeCompare(
-        b.created_at || b.occurred_on || "",
-      ),
-    );
-  /**
-   * Delivery accounting stores service-level data in detail.services. Older
-   * manual entries used either numeric values (e.g. { reels: 37 }) or direct
-   * quantity fields. Read all of those shapes so a manual edit cannot hide
-   * Carruseles/Otros or erase a service whose key was omitted by an old form.
-   */
-  const applyServiceDetail = (
-    detail: Record<string, unknown> | null | undefined,
-    mode: "add" | "set",
-  ) => {
-    if (!detail || typeof detail !== "object") return false;
-    const rawServices =
-      detail.services && typeof detail.services === "object"
-        ? (detail.services as Record<string, unknown>)
-        : null;
-    let found = false;
-    bonusServiceDefinitions.forEach(({ key, quantityKey, priceKey }) => {
-      const hasNested = Boolean(rawServices && Object.prototype.hasOwnProperty.call(rawServices, key));
-      const hasDirect = Object.prototype.hasOwnProperty.call(detail, quantityKey);
-      if (!hasNested && !hasDirect) return;
-      found = true;
-      const raw = hasNested ? rawServices?.[key] : detail[quantityKey];
-      const data = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
-      const quantity = Math.max(
-        0,
-        number((data?.quantity ?? raw) as number | string),
-      );
-      const unitPrice = Math.max(
-        0,
-        number((data?.unitPrice ?? detail[priceKey]) as number | string),
-      );
-      const current = usage.get(key) || { quantity: 0, unitPrice: 0 };
-      usage.set(key, {
-        quantity: mode === "set" ? quantity : current.quantity + quantity,
-        // A legacy/manual row may omit its unit price. Preserve the known
-        // price instead of replacing it with zero.
-        unitPrice: unitPrice > 0 ? unitPrice : current.unitPrice,
-      });
-    });
-    return found;
-  };
-
-  // Process movements chronologically. A manual override is a snapshot patch:
-  // keys present in it are replaced, while omitted keys are intentionally
-  // preserved. This is important for older edits that had no Carruseles field.
-  related.forEach((movement) => {
-    const detail = movement.detail;
-    const source = detail && typeof detail === "object" ? detail.source : null;
-    if (source === "manual_override") {
-      applyServiceDetail(detail, "set");
-      if (detail && Object.prototype.hasOwnProperty.call(detail, "unattributedAmount")) {
-        unattributedAmount = Math.max(
-          0,
-          number(detail.unattributedAmount as number | string),
-        );
-      }
-      return;
-    }
-    const hasServiceDetail = applyServiceDetail(detail, "add");
-    if (!hasServiceDetail) {
-      // Keep historic movements that predate service-level accounting visible.
-      unattributedAmount += Math.max(0, number(movement.amount));
-    }
-  });
-  const allowed = new Map(
-    (bonus.allowed_services || []).map((row) => [
-      row.service.toLowerCase(),
-      number(row.client_unit_price),
-    ]),
-  );
-  return bonusServiceDefinitions.map(({ key, label }) => {
-    const row = usage.get(key) || { quantity: 0, unitPrice: 0 };
-    return {
-      service: key,
-      label,
-      quantity: row.quantity,
-      unitPrice: row.unitPrice || allowed.get(label.toLowerCase()) || 0,
-      unattributedAmount,
-    };
+  // The ledger is authoritative; never reconstruct consumption from a
+  // stale form snapshot, and do not create debit movements while rendering.
+  return calculateBonusServiceUsage({
+    bonusId: bonus.id,
+    usedAmount: bonus.used_amount,
+    movements,
+    allowedServices: bonus.allowed_services || [],
+    rates,
+    complementaryServices,
   });
 }
 function isEditorialEditor(editor: Editor, users: DirectoryUser[] = []) {
@@ -31560,6 +31437,32 @@ function FinanceBonusesManagement({
   const [drawerMode, setDrawerMode] = React.useState<"detail" | "edit">(
     "detail",
   );
+  const [complementaryCatalog, setComplementaryCatalog] = React.useState<
+    Array<{
+      id: string;
+      bonus_id: string | null;
+      service_name: string;
+      client_price: number | string | null;
+    }>
+  >([]);
+  // Complementary subscriptions have service_id in their accounting event.
+  // Resolve it to a real service name instead of guessing "Otros".
+  React.useEffect(() => {
+    if (!selectedId) return;
+    const current = bonuses.find((item) => item.id === selectedId);
+    if (!current) return;
+    let active = true;
+    void createSupabaseBrowserClient()
+      .from("complementary_services")
+      .select("id,bonus_id,service_name,client_price")
+      .eq("client_id", current.client_id)
+      .then(({ data, error }) => {
+        if (active && !error) setComplementaryCatalog((data || []) as typeof complementaryCatalog);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedId]);
   const rows = bonuses.filter((bonus) => {
     const client = clients.find((item) => item.id === bonus.client_id);
     const calculatedStatus =
@@ -31859,7 +31762,7 @@ function FinanceBonusesManagement({
               <FinanceBonusConfigForm
                 bonus={selected}
                 rates={selectedRates}
-                serviceUsage={bonusServiceUsage(selected, selectedMovements)}
+                serviceUsage={bonusServiceUsage(selected, selectedMovements, selectedRates, complementaryCatalog)}
                 onCancel={() => setDrawerMode("detail")}
                 onSave={async (input) => {
                   const saved = await onUpdateBonus(selected.id, input);
@@ -32528,7 +32431,7 @@ function FinanceBonusConfigForm({
     bonus.delivery_frequency || "",
   );
   const [notes, setNotes] = React.useState(bonus.notes || "");
-  const [usage, setUsage] = React.useState(serviceUsage);
+  const usage = serviceUsage;
   const [saving, setSaving] = React.useState(false);
   const allowed = rates
     .filter((rate) => services.includes(rate.service))
@@ -32536,9 +32439,9 @@ function FinanceBonusConfigForm({
       service: rate.service,
       client_unit_price: number(rate.client_unit_price),
     }));
-  const unattributedAmount = Math.max(0, number(usage[0]?.unattributedAmount));
+  const unattributedAmount = number(usage[0]?.unattributedAmount);
   const serviceTotal = usage.reduce(
-    (sum, row) => sum + row.quantity * row.unitPrice,
+    (sum, row) => sum + (row.amount ?? row.quantity * row.unitPrice),
     0,
   );
   return (
@@ -32552,7 +32455,6 @@ function FinanceBonusConfigForm({
             name,
             initial_amount: number(initial),
             paid_on: paidOn,
-            usage_breakdown: usage,
             bonus_type: type,
             allowed_services: allowed,
             pack_config:
@@ -32685,17 +32587,17 @@ function FinanceBonusConfigForm({
               Consumo por servicio
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Unidades y precio real usados para este bono.
+              Unidades y precios calculados automáticamente a partir de las entregas y los movimientos del bono.
             </p>
           </div>
           <span className="text-xs text-slate-500">
             Total: {euro.format(serviceTotal + unattributedAmount)}
           </span>
         </div>
-        {unattributedAmount > 0 && (
+        {Math.abs(unattributedAmount) >= 0.01 && (
           <p className="mt-2 rounded-lg border border-amber-300/20 bg-amber-300/[.05] p-2 text-xs text-amber-100">
-            {euro.format(unattributedAmount)} de consumos históricos no tienen
-            desglose y se conserva en el total.
+            Importe pendiente de conciliar con servicios: {euro.format(unattributedAmount)}.
+            El total siempre conserva el importe del libro de movimientos.
           </p>
         )}
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -32713,52 +32615,24 @@ function FinanceBonusConfigForm({
                     min="0"
                     step="1"
                     value={row.quantity}
-                    onChange={(event) =>
-                      setUsage((current) =>
-                        current.map((item) =>
-                          item.service === row.service
-                            ? {
-                                ...item,
-                                quantity: Math.max(
-                                  0,
-                                  number(event.target.value),
-                                ),
-                              }
-                            : item,
-                        ),
-                      )
-                    }
+                    readOnly
                     className="mt-1 h-8 w-full rounded border border-white/[.08] bg-[#111722] px-2 text-xs text-white"
                   />
                 </label>
                 <label className="text-[10px] text-slate-500">
-                  Precio / unidad
+                  Precio medio / unidad
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     value={row.unitPrice}
-                    onChange={(event) =>
-                      setUsage((current) =>
-                        current.map((item) =>
-                          item.service === row.service
-                            ? {
-                                ...item,
-                                unitPrice: Math.max(
-                                  0,
-                                  number(event.target.value),
-                                ),
-                              }
-                            : item,
-                        ),
-                      )
-                    }
+                    readOnly
                     className="mt-1 h-8 w-full rounded border border-white/[.08] bg-[#111722] px-2 text-xs text-white"
                   />
                 </label>
               </div>
               <p className="mt-1 text-right text-[11px] text-slate-400">
-                {euro.format(row.quantity * row.unitPrice)}
+                {euro.format(row.amount ?? row.quantity * row.unitPrice)}
               </p>
             </div>
           ))}
