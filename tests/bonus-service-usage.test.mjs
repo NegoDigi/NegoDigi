@@ -103,3 +103,60 @@ test("a movement outside this bonus and accounting-only adjustments do not count
   assert.equal(service(rows, "reels").quantity, 1);
   assert.equal(rows[0].unattributedAmount, 0);
 });
+
+
+test("zero-cost included thumbnails reconcile via explicit historical adjustment", () => {
+  const rows = usage({
+    usedAmount: 484,
+    movements: [
+      record("initial", 279, "manual_override", {
+        reels: {quantity: 35, unitPrice: 5},
+        youtube: {quantity: 3, unitPrice: 20},
+        thumbnails: {quantity: 2, unitPrice: 7},
+        other: {quantity: 1, unitPrice: 30},
+      }, "2026-09-21"),
+      record("included", 0, "manual_override", {
+        reels: {quantity: 35, unitPrice: 5},
+        youtube: {quantity: 3, unitPrice: 20},
+        thumbnails: {quantity: 5, unitPrice: 7},
+        other: {quantity: 1, unitPrice: 30},
+      }, "2026-09-26"),
+      record("snapshot", 180, "manual_override", {
+        reels: {quantity: 52, unitPrice: 5},
+        youtube: {quantity: 4, unitPrice: 20},
+        thumbnails: {quantity: 5, unitPrice: 7},
+        other: {quantity: 3, unitPrice: 30},
+        automation: {quantity: 1, unitPrice: 15},
+      }, "2026-09-27"),
+      record("delivery", 25, "delivery_auto", {reels: {quantity: 5, unitPrice: 5}}, "2026-09-29"),
+    ],
+  });
+  assert.equal(service(rows, "reels").quantity, 57);
+  assert.equal(service(rows, "thumbnails").quantity, 5);
+  assert.equal(service(rows, "adjustments").amount, -21);
+  assert.equal(rows.reduce((sum, row) => sum + row.amount, 0), 484);
+  assert.equal(rows[0].unattributedAmount, 0);
+});
+test("negative manual adjustment is separated without erasing historical service counts", () => {
+  const rows = usage({
+    usedAmount: 510,
+    movements: [
+      record("snapshot", 535, "manual_override", {
+        reels: {quantity: 50, unitPrice: 6.5},
+        youtube: {quantity: 8, unitPrice: 20},
+        automation: {quantity: 2, unitPrice: 25},
+      }, "2026-10-20T10:00:00"),
+      record("credit", -50, "manual_override", {
+        reels: {quantity: 50, unitPrice: 6.5},
+        youtube: {quantity: 8, unitPrice: 20},
+      }, "2026-10-20T11:00:00"),
+      {id: "cycle", bonus_id: bonusId, movement_type:"usage", amount:25,
+        created_at:"2026-10-24", detail:{source:"complementary_service_cycle",service_id:"a"}},
+    ],
+    complementaryServices: [{id: "a", bonus_id:bonusId, service_name:"Automatización",client_price:25}],
+  });
+  assert.equal(service(rows, "automation").quantity, 3);
+  assert.equal(service(rows, "adjustments").amount, -50);
+  assert.equal(rows.reduce((sum, row) => sum + row.amount, 0), 510);
+  assert.equal(rows[0].unattributedAmount, 0);
+});

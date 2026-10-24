@@ -32606,6 +32606,11 @@ function FinanceBonusConfigForm({
               className="rounded-lg border border-white/[.07] p-2"
             >
               <p className="text-xs font-medium text-slate-200">{row.label}</p>
+              {row.service === "adjustments" ? (
+                <p className="mt-2 text-[11px] text-amber-200/80">
+                  Ajuste contable histórico separado de las unidades entregadas.
+                </p>
+              ) : (
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <label className="text-[10px] text-slate-500">
                   Unidades
@@ -32630,6 +32635,7 @@ function FinanceBonusConfigForm({
                   />
                 </label>
               </div>
+              )}
               <p className="mt-1 text-right text-[11px] text-slate-400">
                 {euro.format(row.amount ?? row.quantity * row.unitPrice)}
               </p>
