@@ -15,3 +15,16 @@ Se recupera exactamente el aspecto compacto de las tarjetas «Consumo por servic
 **Pruebas**: 7 escenarios de edición directa, más pruebas preexistentes de bonos y de movimientos manuales. Caso Albert Linares: 5 reels × 8 € → escribir 6 → 48 €; delta +8 €. Mantener saldo correcto, respetar importes y movimientos previos.
 
 El código fuente publicado en Vercel todavía debe integrarse completamente en la rama main: se conserva esta rama independiente para no borrar funciones añadidas vía Vercel CLI.
+
+## Publicación final verificada
+- Proyecto Vercel: `negodigi-os`.
+- Despliegue READY en Production: `dpl_GFb5ogQfjQxCPy2TUHhELMpxXFNz`.
+- Dominio principal verificado: `https://app.negodigi.com` → `dpl_GFb5ogQfjQxCPy2TUHhELMpxXFNz`.
+- Tests reales del build: 22 tests superados, cero fallidos. TypeScript y Next.js completados.
+- Refresco acotado a `bonuses` (en lugar de `bonuses` + `finance`) tras editar, para evitar consultas de módulos no relacionados.
+- El panel adicional `enable-manual-bonus-adjustment.mjs` NO se ejecuta. Solo las casillas existentes en las 6 tarjetas son editables.
+- La versión desplegada conserva `/editores` y `/trabaja-con-nosotros` del código original CLI.
+- Saldos intactos durante este lanzamiento. Consulta posterior: Albert Linares 48 € consumidos / 192 € disponibles; Andrés Flores 270 € consumidos / 180 € disponibles.
+- Sin clusters de errores de ejecución del servidor en el periodo comprobado.
+- Rollback: producción anterior `dpl_AkTmR327pYmEhZCa85cJzEBGboE8`.
+- Prueba visual y de escritura con una sesión autenticada de administrador todavía no completada; los tests del build no sustituyen esa prueba.
