@@ -76,7 +76,7 @@ inSection("function FinanceBonusesManagement(","function FinanceBonusesWorkspace
 const refreshAnchor="  const refreshHiringLeads = React.useCallback(async () => {";
 const effect=[
  '  React.useEffect(() => {',
- '    const onInlineSaved = () => { void refresh(["bonuses", "finance"]); };',
+ '    const onInlineSaved = () => { void refresh("bonuses"); };',
  '    window.addEventListener("negodigi:bonus-manual-updated", onInlineSaved);',
  '    return () => window.removeEventListener("negodigi:bonus-manual-updated", onInlineSaved);',
  '  }, [refresh]);',
