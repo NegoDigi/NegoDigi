@@ -32402,7 +32402,6 @@ function FinanceBonusConfigForm({
     name: string;
     initial_amount: number;
     paid_on: string;
-    usage_breakdown: BonusServiceUsage[];
     bonus_type: "credit" | "closed_pack";
     allowed_services: { service: string; client_unit_price?: number | null }[];
     pack_config: Bonus["pack_config"];
