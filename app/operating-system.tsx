@@ -2098,9 +2098,6 @@ function Login({ onReady }: { onReady: () => Promise<void> }) {
   const [password, setPassword] = React.useState("");
   const [message, setMessage] = React.useState("");
   const [working, setWorking] = React.useState(false);
-  const [mode, setMode] = React.useState<"login" | "activation" | "recovery">(
-    "login",
-  );
   async function enter(event: React.FormEvent) {
     event.preventDefault();
     setWorking(true);
@@ -2112,28 +2109,11 @@ function Login({ onReady }: { onReady: () => Promise<void> }) {
     setWorking(false);
     if (error) {
       setMessage(
-        "No se pudo entrar. Comprueba tus datos o solicita un enlace de acceso.",
+        "No se pudo entrar. Comprueba tus datos o crea el acceso con el email registrado en NegoDigi.",
       );
       return;
     }
     await onReady();
-  }
-  async function requestLink(kind: "activation" | "recovery") {
-    setWorking(true);
-    setMessage("");
-    const { error } = await supabase.functions.invoke("request-access", {
-      body: { kind, email },
-    });
-    setWorking(false);
-    if (error) {
-      setMessage(
-        "No se pudo registrar la solicitud ahora. Inténtalo de nuevo o contacta con Dirección.",
-      );
-      return;
-    }
-    setMessage(
-      "No se envía ningún correo desde aquí. Si el acceso existe, Dirección verá la solicitud y deberá copiarte un enlace seguro. Por seguridad no confirmamos si existe una cuenta.",
-    );
   }
   return (
     <main className="grid min-h-screen place-items-center bg-[#080b11] p-5 text-white">
@@ -2150,20 +2130,10 @@ function Login({ onReady }: { onReady: () => Promise<void> }) {
         </p>
         <h1 className="mt-2 text-2xl font-semibold">Acceso privado</h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          Entra con tu correo y contraseña. Si es tu primera vez, solicita
-          acceso para crear tu contraseña aquí.
+          Entra con tu correo y contraseña. Si es tu primera vez, crea tu
+          contraseña con el email que Dirección tiene registrado.
         </p>
-        <form
-          onSubmit={
-            mode === "login"
-              ? enter
-              : (event) => {
-                  event.preventDefault();
-                  void requestLink(mode);
-                }
-          }
-          className="mt-7 space-y-3"
-        >
+        <form onSubmit={enter} className="mt-7 space-y-3">
           <input
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -2172,61 +2142,32 @@ function Login({ onReady }: { onReady: () => Promise<void> }) {
             className="h-12 w-full rounded-xl border border-white/[.08] bg-white/[.03] px-4 text-sm outline-none focus:ring-2 focus:ring-violet-400/50"
             placeholder="Correo"
           />
-          {mode === "login" && (
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={8}
-              type="password"
-              className="h-12 w-full rounded-xl border border-white/[.08] bg-white/[.03] px-4 text-sm outline-none focus:ring-2 focus:ring-violet-400/50"
-              placeholder="Contraseña"
-            />
-          )}
+          <input
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+            minLength={8}
+            type="password"
+            className="h-12 w-full rounded-xl border border-white/[.08] bg-white/[.03] px-4 text-sm outline-none focus:ring-2 focus:ring-violet-400/50"
+            placeholder="Contraseña"
+          />
           <button
             disabled={working}
             className="h-12 w-full rounded-xl bg-violet-500 text-sm font-medium hover:bg-violet-400 disabled:opacity-60"
           >
-            {working
-              ? "Procesando…"
-              : mode === "login"
-                ? "Entrar"
-                : mode === "activation"
-                  ? "Avisar a Dirección para activar"
-                  : "Avisar a Dirección para recuperar"}
+            {working ? "Entrando…" : "Entrar"}
           </button>
         </form>
-        {mode === "login" ? (
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <a
-              href="/register"
-              className="flex h-11 items-center justify-center rounded-xl border border-white/[.1] text-sm text-slate-300 hover:bg-white/[.04]"
-            >
-              Primer acceso · Crear contraseña
-            </a>
-            <button
-              disabled={working}
-              onClick={() => {
-                setMode("recovery");
-                setMessage("");
-              }}
-              className="h-11 rounded-xl border border-white/[.1] text-sm text-slate-300 hover:bg-white/[.04] disabled:opacity-50"
-            >
-              Olvidé mi contraseña
-            </button>
-          </div>
-        ) : (
-          <button
-            disabled={working}
-            onClick={() => {
-              setMode("login");
-              setMessage("");
-            }}
-            className="mt-3 h-11 w-full rounded-xl border border-white/[.1] text-sm text-slate-300 hover:bg-white/[.04] disabled:opacity-50"
-          >
-            Volver a entrar
-          </button>
-        )}
+        <a
+          href="/register"
+          className="mt-3 flex h-11 items-center justify-center rounded-xl border border-white/[.1] text-sm text-slate-300 hover:bg-white/[.04]"
+        >
+          Primer acceso · Crear contraseña
+        </a>
+        <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+          Si has olvidado tu contraseña, usa también «Crear contraseña» con el
+          email que Dirección tiene registrado.
+        </p>
         {message && (
           <p className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/[.08] p-3 text-sm text-amber-200">
             {message}
@@ -8015,11 +7956,11 @@ export function OperatingSystem() {
   };
   return (
     <div
-      className={`app-shell min-h-screen bg-[#080b11] text-slate-100 ${privateMode ? "private-mode" : ""}`}
+      className={`app-shell min-h-screen min-w-0 bg-[#080b11] text-slate-100 ${privateMode ? "private-mode" : ""}`}
       data-private-mode={privateMode ? "on" : "off"}
     >
       <aside
-        className={`app-sidebar border-b border-white/[.05] bg-[#0c1018] lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:h-dvh lg:overflow-y-auto lg:border-r lg:border-b-0 ${sidebarCollapsed ? "lg:w-[76px]" : "lg:w-[248px]"}`}
+        className={`app-sidebar border-b border-white/[.05] bg-[#0c1018] lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:h-dvh lg:border-r lg:border-b-0 ${sidebarCollapsed ? "lg:w-[76px]" : "lg:w-[248px]"}`}
       >
         <div className="flex h-16 items-center gap-3 px-3">
           <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-[#0b1018] shadow-[0_10px_30px_rgba(0,0,0,.26)]">
@@ -8341,7 +8282,7 @@ export function OperatingSystem() {
           duration={3500}
           visibleToasts={4}
         />
-        <main className="app-main mx-auto w-full max-w-[1560px] p-4 sm:p-6 lg:p-8">
+        <main className="app-main mx-auto min-w-0 w-full max-w-[1560px] p-4 sm:p-6 lg:p-8">
           {isPreviewing && (
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-400/20 bg-sky-400/[.07] px-4 py-3 text-xs text-sky-100">
               <span>
@@ -41222,7 +41163,7 @@ function UsersAndRolesSettings({
       <PageHeading
         eyebrow="Sistema"
         title="Usuarios y roles"
-        description="Gestiona el equipo y autoriza su primer acceso desde app.negodigi.com."
+        description="Gestiona el equipo y prepara sus accesos desde app.negodigi.com."
         action={
           <button
             type="button"
@@ -41311,9 +41252,9 @@ function UsersAndRolesSettings({
         <Panel className="p-5">
           <h2 className="font-semibold text-white">Nuevo acceso</h2>
           <p className="mt-1 text-xs text-slate-500">
-            El acceso queda pendiente. La persona entra en app.negodigi.com,
-            pulsa Primer acceso y solicita crear su contraseña. Autoriza su
-            solicitud aquí cuando confirmes su identidad.
+            Registra el email de la persona aquí. Después entra en
+            app.negodigi.com, pulsa Primer acceso y crea su contraseña con ese
+            mismo email. No necesita correo, verificación ni aprobación manual.
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <label className="text-xs text-slate-500">
