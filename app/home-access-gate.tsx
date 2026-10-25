@@ -58,9 +58,12 @@ export function HomeAccessGate() {
   }
 
   return (
-    <main className="auth-shell min-h-screen bg-[#f5f7fb] px-5 py-10 text-[#142b4a]">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md items-center justify-center">
-        <section className="auth-card w-full rounded-[28px] border border-[#e2e8f0] bg-white px-7 py-9 shadow-[0_24px_70px_rgba(15,23,42,.10)] sm:px-9">
+    <main className="auth-shell auth-background relative isolate min-h-screen overflow-hidden bg-[#f5f7fb] px-5 py-10 text-[#142b4a]">
+      <span className="auth-bubble auth-bubble--one" aria-hidden="true" />
+      <span className="auth-bubble auth-bubble--two" aria-hidden="true" />
+      <span className="auth-bubble auth-bubble--three" aria-hidden="true" />
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-lg items-center justify-center">
+        <section className="auth-card w-full rounded-[30px] border border-[#e2e8f0] bg-white px-8 py-10 shadow-[0_24px_70px_rgba(15,23,42,.10)] sm:px-10 sm:py-11">
           <div className="flex flex-col items-center text-center">
             <img src={logoUrl} alt="NegoDigi" className="h-16 w-auto max-w-[220px] object-contain" />
             <p className="mt-5 text-[11px] font-semibold uppercase tracking-[.22em] text-[#1769e8]">NegoDigi APP</p>
@@ -80,3 +83,4 @@ export function HomeAccessGate() {
     </main>
   );
 }
+
