@@ -42,3 +42,19 @@ export function createSupabaseEphemeralBrowserClient() {
     },
   );
 }
+
+export function createSupabaseRecoveryBrowserClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || fallbackUrl,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || fallbackPublishableKey,
+    {
+      global: { fetch: supabaseFetch },
+      auth: {
+        // The recovery page must consume the one-time session from the email
+        // link before allowing auth.updateUser({ password }).
+        detectSessionInUrl: true,
+        persistSession: true,
+      },
+    },
+  );
+}
