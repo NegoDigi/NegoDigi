@@ -790,6 +790,22 @@ html[data-theme="light"] .status-violet { color: #155ba8 !important; background:
 body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
 .panel-surface { min-width: 0; }
 
+/* Auth screens intentionally use a quiet light canvas, even when the app dashboard
+   is configured to use the dark theme. */
+.auth-shell input,
+.auth-shell textarea,
+.auth-shell select {
+  color: #142b4a !important;
+  background-color: #f8fafc !important;
+}
+.auth-shell input::placeholder,
+.auth-shell textarea::placeholder {
+  color: #94a3b8 !important;
+}
+.auth-shell .auth-card {
+  color: #142b4a;
+}
+
 @media (max-width: 767px) {
   .app-header { padding-inline: 0.75rem !important; }
   .app-main { padding: 1rem !important; }
@@ -807,4 +823,3 @@ body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; 
   *::before,
   *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
-
