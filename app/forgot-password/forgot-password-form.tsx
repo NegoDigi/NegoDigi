@@ -50,7 +50,7 @@ export function ForgotPasswordForm() {
         <p className="mt-5 text-[11px] uppercase tracking-[.2em] text-violet-300">NegoDigi APP</p>
         <h1 className="mt-2 text-2xl font-semibold">Recupera tu contraseña</h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          Escribe el email con el que entras en NegoDigi y te enviaremos un enlace seguro para elegir una nueva contraseña.
+          Escribe el email con el que entras en NegoDigi y te enviaremos un código seguro para elegir una nueva contraseña.
         </p>
 
         {!sent ? (
@@ -68,11 +68,11 @@ export function ForgotPasswordForm() {
           </form>
         ) : (
           <div className="mt-7 rounded-2xl border border-emerald-400/20 bg-emerald-400/[.08] p-4 text-sm leading-6 text-emerald-200" role="status">
-            Si ese email tiene un acceso, recibirás un mensaje de NegoDigi con el enlace para cambiar tu contraseña. Revisa también spam o promociones.
+            Si ese email tiene un acceso, recibirás un mensaje de NegoDigi con el código para cambiar tu contraseña. Revisa también spam o promociones.
           </div>
         )}
         {message && <p role="alert" className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/[.08] p-3 text-sm leading-5 text-amber-200">{message}</p>}
-        <p className="mt-5 text-center text-xs leading-5 text-slate-500">El enlace es de un solo uso y caduca por seguridad.</p>
+        <p className="mt-5 text-center text-xs leading-5 text-slate-500">El código es de un solo uso y caduca por seguridad.</p>
       </section>
     </main>
   );
