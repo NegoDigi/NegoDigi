@@ -9,7 +9,12 @@ import { createSupabaseRecoveryBrowserClient } from "@/lib/supabase/client";
 const fieldClass =
   "h-12 w-full rounded-xl border border-white/10 bg-white/[.03] px-4 text-sm outline-none focus:ring-2 focus:ring-violet-400/50";
 
-type PageState = "checking" | "ready" | "invalid" | "done";
+type PageState =
+  | "checking"
+  | "awaiting-confirmation"
+  | "ready"
+  | "invalid"
+  | "done";
 
 export function ResetPasswordForm() {
   const supabase = React.useMemo(() => createSupabaseRecoveryBrowserClient(), []);
@@ -20,16 +25,26 @@ export function ResetPasswordForm() {
   const [showConfirmation, setShowConfirmation] = React.useState(false);
   const [working, setWorking] = React.useState(false);
   const [message, setMessage] = React.useState("");
+  const tokenHashRef = React.useRef<string | null>(null);
+  const recoveryResolutionRef = React.useRef<Promise<void> | null>(null);
 
   React.useEffect(() => {
     let active = true;
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active && session) setState("ready");
+      // Keep token-hash links pending until the user explicitly continues.
+      // Email security scanners must not be able to consume the recovery token.
+      if (active && session && !tokenHashRef.current) setState("ready");
     });
 
-    const tokenHash = new URLSearchParams(window.location.search).get("token_hash");
-    const authCode = new URLSearchParams(window.location.search).get("code");
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get("token_hash");
+    const authCode = params.get("code");
+    tokenHashRef.current = tokenHash;
     const resolveRecovery = async () => {
+      if (tokenHash) {
+        if (active) setState("awaiting-confirmation");
+        return;
+      }
       if (authCode) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
         if (active) setState(!error && data.session ? "ready" : "invalid");
@@ -49,13 +64,35 @@ export function ResetPasswordForm() {
         });
       }, 700);
     };
-    void resolveRecovery();
+    recoveryResolutionRef.current ||= resolveRecovery();
+    void recoveryResolutionRef.current;
 
     return () => {
       active = false;
       listener.subscription.unsubscribe();
     };
   }, [supabase]);
+
+  async function continueRecovery() {
+    const tokenHash = tokenHashRef.current;
+    if (!tokenHash || working) return;
+    setWorking(true);
+    setMessage("");
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: "recovery",
+    });
+    if (error || !data.session) {
+      setState("invalid");
+      setMessage("Este enlace ya no es válido. Solicita otro para cambiar tu contraseña.");
+      setWorking(false);
+      return;
+    }
+    tokenHashRef.current = null;
+    window.history.replaceState(null, "", "/reset-password");
+    setState("ready");
+    setWorking(false);
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -90,6 +127,14 @@ export function ResetPasswordForm() {
         <h1 className="mt-2 text-2xl font-semibold">Cambia tu contraseña</h1>
 
         {state === "checking" && <p className="mt-5 text-sm leading-6 text-slate-400">Comprobando tu enlace seguro…</p>}
+        {state === "awaiting-confirmation" && (
+          <div className="mt-5 space-y-4">
+            <p className="text-sm leading-6 text-slate-300">Tu enlace está listo. Pulsa el botón para validarlo y elegir una nueva contraseña.</p>
+            <button type="button" onClick={() => void continueRecovery()} disabled={working} className="flex h-12 w-full items-center justify-center rounded-xl bg-violet-500 text-sm font-medium hover:bg-violet-400 disabled:opacity-60">
+              {working ? "Validando enlace…" : "Continuar para cambiarla"}
+            </button>
+          </div>
+        )}
         {state === "invalid" && (
           <div className="mt-5 space-y-4">
             <p className="text-sm leading-6 text-slate-300">Este enlace ha caducado o ya se ha utilizado. Solicita uno nuevo para cambiar tu contraseña.</p>
@@ -128,3 +173,4 @@ export function ResetPasswordForm() {
     </main>
   );
 }
+
