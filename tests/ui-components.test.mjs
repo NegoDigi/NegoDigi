@@ -72,6 +72,17 @@ test("keeps the universe presentation and the complete handbook resources", asyn
   assert.match(source, /podium-card--gold/);
   assert.match(source, /podium-card--bronze/);
   assert.match(css, /\.podium-card--gold/);
+  assert.match(source, /Ver reconocimientos/);
+  assert.match(source, /Giro normal/);
+  assert.match(source, /const rewardRowsPromise = queryCache/);
+  assert.match(source, /const editorTeamRankingRowsPromise = queryCache/);
+  assert.doesNotMatch(source, /get_my_editor_live_ranking/);
+  const editorNews = source.slice(
+    source.indexOf("function EditorNewsWorkspace"),
+    source.indexOf("function EditorWorkspace"),
+  );
+  assert.doesNotMatch(editorNews, /<Megaphone/);
+  assert.doesNotMatch(editorNews, /periodLabel=\{formatPeriodLabel\(monthKey\)\}\s+large/);
   assert.match(source, /aria-label="Vistas del editor del mes"/);
   assert.match(source, />\s*Ranking\s*<\/button>/);
   assert.match(source, />\s*Analítica\s*<\/button>/);

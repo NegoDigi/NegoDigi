@@ -2763,6 +2763,62 @@ export function OperatingSystem() {
         const jobSelect = isAdministrativeRole(current.role)
           ? `id,client_id,editor_id,title,status,assigned_on,planned_on,due_on,delivered_on,created_at,clients(id,name),editors(id,name),${jobProductionJoin},job_financials(client_total,editor_total,tools_total,margin)`
           : `id,client_id,editor_id,title,status,assigned_on,planned_on,due_on,delivered_on,created_at,clients(id,name),editors(id,name),${jobProductionJoin}`;
+        // The Editor del Mes panel is the first view for editors. Start its two
+        // small reads before the rest of the workspace and commit them as soon
+        // as each one resolves instead of waiting for every dashboard query.
+        const rewardRowsPromise = queryCache
+          .load(
+            user.id + ":rewardRows",
+            () =>
+              current.role === "owner" ||
+              current.role === "admin" ||
+              current.role === "editor"
+                ? supabase
+                    .from("editor_reward_settings")
+                    .select(
+                      "id,period_key,rank_position,amount,name,description,reward_type,status",
+                    )
+                    .order("rank_position")
+                : Promise.resolve({ data: [], error: null }),
+            scopes,
+            ["ranking"],
+            120_000,
+          )
+          .then((result) => {
+            if (isCurrent() && !result.error) {
+              setEditorRewards((result.data || []) as EditorReward[]);
+            }
+            return result;
+          });
+        const editorTeamRankingRowsPromise = queryCache
+          .load(
+            user.id + ":editorTeamRankingRows",
+            () =>
+              current.role === "editor"
+                ? supabase.rpc("get_editor_team_live_ranking", {
+                    target_period_key: madridMonthKey(),
+                  })
+                : Promise.resolve({ data: [], error: null }),
+            scopes,
+            ["ranking", "production"],
+            120_000,
+          )
+          .then((result) => {
+            if (isCurrent() && !result.error) {
+              const rows = (result.data || []) as EditorTeamRankingRow[];
+              setEditorTeamRanking(rows);
+              setPersonalRanking(
+                rows.find((row) => row.editor_id === current.editor_id) || null,
+              );
+            }
+            return result;
+          });
+        // The team RPC already contains the signed-in editor's own row, so a
+        // second RPC that recalculates the same ranking only adds latency.
+        const personalRankingRowsPromise = Promise.resolve({
+          data: [] as PersonalRanking[],
+          error: null,
+        });
         const [
           clientRows,
           nucleoFileRows,
@@ -3361,23 +3417,7 @@ export function OperatingSystem() {
             ["ranking"],
             120_000,
           ),
-          queryCache.load(
-            user.id + ":rewardRows",
-            () =>
-              current.role === "owner" ||
-              current.role === "admin" ||
-              current.role === "editor"
-                ? supabase
-                    .from("editor_reward_settings")
-                    .select(
-                      "id,period_key,rank_position,amount,name,description,reward_type,status",
-                    )
-                    .order("rank_position")
-                : Promise.resolve({ data: [], error: null }),
-            scopes,
-            ["ranking"],
-            120_000,
-          ),
+          rewardRowsPromise,
           queryCache.load(
             user.id + ":frozenRankingRows",
             () =>
@@ -3501,30 +3541,8 @@ export function OperatingSystem() {
             ["directory"],
             120_000,
           ),
-          queryCache.load(
-            user.id + ":personalRankingRows",
-            () =>
-              current.role === "editor"
-                ? supabase.rpc("get_my_editor_live_ranking", {
-                    target_period_key: madridMonthKey(),
-                  })
-                : Promise.resolve({ data: [], error: null }),
-            scopes,
-            ["ranking", "production"],
-            120_000,
-          ),
-          queryCache.load(
-            user.id + ":editorTeamRankingRows",
-            () =>
-              current.role === "editor"
-                ? supabase.rpc("get_editor_team_live_ranking", {
-                    target_period_key: madridMonthKey(),
-                  })
-                : Promise.resolve({ data: [], error: null }),
-            scopes,
-            ["ranking", "production"],
-            120_000,
-          ),
+          personalRankingRowsPromise,
+          editorTeamRankingRowsPromise,
         ]);
         if (!isCurrent()) return;
         const failedQueries = [
@@ -3810,7 +3828,7 @@ export function OperatingSystem() {
             Array.isArray(payload) ? [] : payload?.access_requests || [],
           );
         }
-        if (!personalRankingRows.error)
+        if (!personalRankingRows.error && personalRankingRows.data.length)
           setPersonalRanking(
             ((personalRankingRows.data || [])[0] as
               PersonalRanking | undefined) || null,
@@ -10660,19 +10678,18 @@ function EditorNewsWorkspace({
         <div className="pointer-events-none absolute inset-x-1/4 -top-24 h-44 rounded-full bg-sky-400/[.06] blur-3xl" />
         <div className="relative flex items-center justify-center">
           <div className="text-center">
-            <Megaphone className="mx-auto size-5 text-sky-300" aria-hidden="true" />
-            <h3 className="mt-2 text-2xl font-black uppercase tracking-[.18em] text-white sm:text-4xl">
+            <h3 className="text-2xl font-black uppercase tracking-[.18em] text-white sm:text-4xl">
               Editor del mes
             </h3>
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((open) => !open)}
+              aria-expanded={historyOpen}
+              className="mt-2 text-[10px] font-bold uppercase tracking-[.12em] text-amber-200 transition hover:text-amber-100"
+            >
+              {historyOpen ? "Ocultar reconocimientos" : "Ver reconocimientos"}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setHistoryOpen((open) => !open)}
-            aria-expanded={historyOpen}
-            className="absolute right-0 top-0 rounded-full border border-amber-200/20 bg-amber-200/[.07] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.12em] text-amber-100 transition hover:border-amber-200/40 hover:bg-amber-200/[.14]"
-          >
-            {historyOpen ? "Cerrar historial" : "Historial"}
-          </button>
         </div>
       </div>
       {historyOpen && (
@@ -10721,7 +10738,6 @@ function EditorNewsWorkspace({
         <VisualTeamPodium
           entries={podium}
           periodLabel={formatPeriodLabel(monthKey)}
-          large
         />
         <div className="grid gap-4 xl:grid-cols-[.8fr_1.2fr]">
           <Panel className="p-5">
@@ -17619,7 +17635,8 @@ function VisualTeamPodium({
     "podium-card--bronze border-orange-300/30",
   ];
   const defaultPrize = (place: number) =>
-    place === 1 ? "Bono extra" : place === 2 ? "Giro especial" : "Giro ruleta";
+    place === 1 ? "Bono extra" : place === 2 ? "Giro especial" : "Giro normal";
+  const loadingEntries = entries.every((entry) => !entry);
   return (
     <Panel className={`p-5 ${compact ? "" : ""}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -17652,7 +17669,7 @@ function VisualTeamPodium({
               {index === 1 && <Crown className="relative z-10 mb-2 size-5 text-amber-300" />}
               <p className="relative z-10 max-w-full truncate text-sm font-semibold text-white">
                 {entry?.row.editor_name?.split(" ").slice(0, 2).join(" ") ||
-                  "Sin datos"}
+                  (loadingEntries ? "Cargando…" : "Sin datos")}
               </p>
               <p className="relative z-10 mt-1 text-xs text-violet-200">
                 {entry ? `${entry.score} puntos` : "—"}
