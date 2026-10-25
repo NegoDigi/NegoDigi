@@ -133,7 +133,12 @@ export function ResetPasswordForm() {
     setWorking(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      setMessage("Este enlace o código ya no es válido. Solicita uno nuevo para cambiar tu contraseña.");
+      const detail = error.message.toLowerCase();
+      setMessage(
+        error.code === "same_password" || detail.includes("different from the old password")
+          ? "La nueva contraseña debe ser diferente a la anterior. Escribe otra y vuelve a intentarlo."
+          : "No se pudo guardar la contraseña. El enlace ya fue validado; prueba con otra contraseña.",
+      );
       setWorking(false);
       return;
     }
