@@ -64,11 +64,63 @@ type DialogState = {
   entity: Entity;
   record?: MarketingRecord;
 } | null;
+type PersistedMarketingNavigation = { section?: Section; crmTab?: CrmTab };
 type MarketingData = {
   resources: MarketingRecord[];
   content: MarketingRecord[];
   leads: MarketingRecord[];
 };
+
+const marketingSections: Section[] = [
+  "home",
+  "social",
+  "channels",
+  "ads",
+  "bcc",
+  "affiliates",
+  "crm",
+];
+const crmTabs: CrmTab[] = [
+  "panel",
+  "contacts",
+  "pipeline",
+  "portfolio",
+  "analytics",
+];
+function readMarketingNavigation(organizationId: string) {
+  if (typeof window === "undefined" || !organizationId) return {};
+  try {
+    const stored = JSON.parse(
+      window.localStorage.getItem(
+        `negodigi-marketing-navigation-v1:${organizationId}`,
+      ) || "null",
+    ) as { section?: unknown; crmTab?: unknown } | null;
+    return {
+      section: marketingSections.includes(stored?.section as Section)
+        ? (stored?.section as Section)
+        : undefined,
+      crmTab: crmTabs.includes(stored?.crmTab as CrmTab)
+        ? (stored?.crmTab as CrmTab)
+        : undefined,
+    } satisfies PersistedMarketingNavigation;
+  } catch {
+    return {};
+  }
+}
+function writeMarketingNavigation(
+  organizationId: string,
+  state: PersistedMarketingNavigation,
+) {
+  if (typeof window === "undefined" || !organizationId) return;
+  try {
+    window.localStorage.setItem(
+      `negodigi-marketing-navigation-v1:${organizationId}`,
+      JSON.stringify(state),
+    );
+  } catch {
+    // Navigation persistence must never block the workspace.
+  }
+}
 type Upsell = {
   id: string;
   service: string;
@@ -295,6 +347,13 @@ export function MarketingWorkspace({
   const db = React.useMemo(() => createSupabaseBrowserClient(), []);
   const [section, setSection] = React.useState<Section>(initialSection);
   const [crmTab, setCrmTab] = React.useState<CrmTab>("panel");
+  React.useEffect(() => {
+    const saved = readMarketingNavigation(organizationId);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSection(saved.section || initialSection);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCrmTab(saved.crmTab || "panel");
+  }, [organizationId, initialSection]);
   const [resources, setResources] = React.useState<MarketingRecord[]>([]);
   const [content, setContent] = React.useState<MarketingRecord[]>([]);
   const [leads, setLeads] = React.useState<MarketingRecord[]>([]);
@@ -380,6 +439,11 @@ export function MarketingWorkspace({
     setSection(next);
     setSearch("");
     setStage("");
+    writeMarketingNavigation(organizationId, { section: next, crmTab });
+  };
+  const changeCrmTab = (next: CrmTab) => {
+    setCrmTab(next);
+    writeMarketingNavigation(organizationId, { section, crmTab: next });
   };
   const open = (
     entity: Entity,
@@ -551,13 +615,13 @@ export function MarketingWorkspace({
 
   if (!canEdit)
     return (
-      <section className={`${panel} p-6`}>
+      <section className={`${panel} marketing-workspace p-6`}>
         Marketing está disponible para usuarios con acceso de administración.
       </section>
     );
   if (dialog?.entity === "lead")
     return (
-      <div className="space-y-6 pb-10">
+      <div className="marketing-workspace space-y-6 pb-10">
         <LeadWorkspace
           record={dialog.record}
           mode={dialog.mode}
@@ -576,7 +640,7 @@ export function MarketingWorkspace({
       </div>
     );
   return (
-    <div className="space-y-6 pb-10">
+    <div className="marketing-workspace space-y-6 pb-10">
       {loadError && (
         <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
           {loadError}
@@ -813,7 +877,7 @@ function Workspace({
     <SalesCrm
       data={data}
       tab={crmTab}
-      setTab={setCrmTab}
+      setTab={changeCrmTab}
       search={search}
       setSearch={setSearch}
       stage={stage}

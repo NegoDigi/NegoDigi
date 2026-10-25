@@ -1112,7 +1112,7 @@ body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; 
   border-radius: 999px;
   background: rgba(83, 169, 255, .035);
   box-shadow: 0 18px 70px rgba(37, 126, 231, .055), inset 0 0 35px rgba(255, 255, 255, .3);
-  filter: blur(12px);
+  filter: none;
   pointer-events: none;
   animation: auth-bubble-drift 15s ease-in-out infinite;
 }
@@ -1650,3 +1650,315 @@ html[data-theme=light] .operating-table tbody td{border-bottom-color:#42668f1f!i
 }
 html[data-theme=light] .navigation-hub-card{background:linear-gradient(145deg,#fff,#f2f7fc)!important;border-color:#42668f24!important}
 
+/* Calm light workspace: soft neutral canvas, clear white surfaces and restrained color. */
+html[data-theme="light"] {
+  --background: #f3f6fa;
+  --foreground: #20344c;
+  --card: #ffffff;
+  --card-foreground: #20344c;
+  --popover: #ffffff;
+  --popover-foreground: #20344c;
+  --secondary: #edf2f8;
+  --secondary-foreground: #263c55;
+  --muted: #eef3f8;
+  --muted-foreground: #5c7087;
+  --accent: #eaf1f8;
+  --accent-foreground: #213953;
+  --border: #dbe4ee;
+  --input: #dbe4ee;
+  --ring: #3b82f6;
+}
+
+html[data-theme="light"] body {
+  background: #f3f6fa;
+  color: #20344c;
+}
+
+html[data-theme="light"] .app-shell {
+  background:
+    radial-gradient(ellipse at 78% 4%, rgb(119 176 245 / 11%), transparent 33rem),
+    radial-gradient(ellipse at 8% 78%, rgb(167 153 240 / 7%), transparent 30rem),
+    linear-gradient(145deg, #f5f8fc 0%, #eff4f9 56%, #f5f8fc 100%) !important;
+  animation: none !important;
+}
+
+html[data-theme="light"] .app-main::before {
+  display: none !important;
+}
+
+html[data-theme="light"] .app-main::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 4rem 0 0;
+  display: block !important;
+  pointer-events: none;
+  opacity: 0.52;
+  background:
+    radial-gradient(ellipse at 16% 28%, rgb(104 177 255 / 9%) 0 5rem, transparent 15rem),
+    radial-gradient(ellipse at 82% 64%, rgb(170 154 239 / 7%) 0 5rem, transparent 17rem),
+    radial-gradient(ellipse at 54% 8%, rgb(117 207 226 / 6%) 0 4rem, transparent 16rem);
+  animation: negodigi-light-drift 34s ease-in-out infinite alternate;
+}
+
+@keyframes negodigi-light-drift {
+  from { transform: translate3d(-0.5%, 0, 0) scale(1); }
+  to { transform: translate3d(0.5%, -0.5%, 0) scale(1.025); }
+}
+
+html[data-theme="light"] .app-sidebar {
+  background: rgb(250 252 255 / 94%) !important;
+  border-color: #dce5ef !important;
+  box-shadow: 8px 0 28px rgb(35 63 94 / 5%) !important;
+}
+
+html[data-theme="light"] .app-header {
+  background: rgb(250 252 255 / 92%) !important;
+  border-color: #dce5ef !important;
+  box-shadow: 0 4px 18px rgb(35 63 94 / 4%) !important;
+}
+
+html[data-theme="light"] .panel-surface {
+  color: #20344c;
+  background: #ffffff !important;
+  border-color: #e1e8f0 !important;
+  box-shadow: 0 8px 26px rgb(35 62 92 / 5%), inset 0 1px 0 #ffffff !important;
+}
+
+html[data-theme="light"] .panel-surface:not(.table-panel):not(.financial-chart-panel) {
+  border-color: #e1e8f0 !important;
+}
+
+html[data-theme="light"] .app-main .client-directory-card,
+html[data-theme="light"] .app-main .rate-directory-card,
+html[data-theme="light"] .app-main .marketing-panel,
+html[data-theme="light"] .app-main .dashboard-area-card {
+  border-color: #e1e8f0 !important;
+}
+
+html[data-theme="light"] .app-main .client-directory-card:hover,
+html[data-theme="light"] .app-main .rate-directory-card:hover,
+html[data-theme="light"] .app-main .marketing-panel:hover,
+html[data-theme="light"] .app-main .dashboard-area-card:hover {
+  border-color: #d1deea !important;
+}
+
+html[data-theme="light"] .panel-surface:hover {
+  border-color: #d1deea !important;
+  box-shadow: 0 12px 30px rgb(35 62 92 / 8%), inset 0 1px 0 #ffffff !important;
+  transform: none !important;
+}
+
+html[data-theme="light"] .table-panel.panel-surface {
+  background: #ffffff !important;
+  border-color: #e1e8f0 !important;
+  box-shadow: 0 8px 26px rgb(35 62 92 / 5%) !important;
+}
+
+html[data-theme="light"] .app-sidebar nav > div {
+  background: rgb(255 255 255 / 70%);
+  border-color: #e5ebf2;
+}
+
+html[data-theme="light"] .app-sidebar nav > div > p {
+  color: #74869a !important;
+}
+
+html[data-theme="light"] .app-sidebar nav button:hover,
+html[data-theme="light"] .app-sidebar nav button[class~="bg-[#1a2230]"] {
+  color: #1f4f84 !important;
+  background: #edf4fb !important;
+  border-color: #d5e5f6 !important;
+}
+
+html[data-theme="light"] .header-controls select,
+html[data-theme="light"] .appearance-select {
+  color: #263d57 !important;
+  background-color: #ffffff !important;
+  border-color: #d9e3ed !important;
+}
+
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+  color: #20344c !important;
+  caret-color: #2563eb;
+}
+
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #7b8da2 !important;
+  opacity: 1;
+}
+
+html[data-theme="light"] .app-main button[class*="bg-blue-"][class~="text-white"],
+html[data-theme="light"] .app-main a[class*="bg-blue-"][class~="text-white"] {
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .page-heading-blue-panel {
+  background: linear-gradient(115deg, #e9f3fc, #f3f7fc 58%, #edf3fa) !important;
+  border-color: #d4e2f0 !important;
+  box-shadow: 0 8px 24px rgb(35 62 92 / 5%), inset 0 1px #ffffff !important;
+}
+
+html[data-theme="light"] .general-universe {
+  background:
+    radial-gradient(ellipse at 50% 44%, rgb(119 184 255 / 11%), transparent 28rem),
+    radial-gradient(ellipse at 14% 14%, rgb(131 213 229 / 8%), transparent 23rem),
+    linear-gradient(145deg, #edf4fb, #f4f7fb 60%, #edf3fa) !important;
+  border-color: #d9e4ef !important;
+  box-shadow: 0 14px 38px rgb(35 62 92 / 7%), inset 0 1px #ffffff !important;
+}
+
+html[data-theme="light"] .general-universe::after {
+  background: radial-gradient(ellipse at center, transparent 35%, rgb(226 234 244 / 20%) 100%) !important;
+}
+
+html[data-theme="light"] .general-universe::before {
+  opacity: 0.08 !important;
+}
+
+html[data-theme="light"] .general-universe-stars {
+  opacity: 0.22;
+}
+
+html[data-theme="light"] .general-universe-orbit {
+  border-color: rgb(76 140 205 / 17%) !important;
+}
+
+html[data-theme="light"] .general-universe-orbit-inner {
+  border-color: rgb(147 128 213 / 15%) !important;
+}
+
+html[data-theme="light"] .universe-node {
+  border-color: color-mix(in srgb, var(--node-color) 26%, #ffffff) !important;
+  box-shadow: inset 0 1px 0 #ffffff, 0 12px 28px rgb(38 68 101 / 9%), 0 0 0 6px color-mix(in srgb, var(--node-color) 4%, transparent) !important;
+}
+
+html[data-theme="light"] .universe-core {
+  box-shadow: inset 0 1px #ffffff, 0 0 0 8px rgb(83 176 255 / 5%), 0 16px 40px rgb(58 116 166 / 13%) !important;
+}
+
+html[data-theme="light"] .marketing-workspace {
+  color: #20344c;
+}
+
+html[data-theme="light"] .marketing-workspace [class*="bg-slate-900"],
+html[data-theme="light"] .marketing-workspace [class*="bg-slate-950"] {
+  background-color: #f4f7fa !important;
+}
+
+html[data-theme="light"] .marketing-workspace [class*="border-slate-700"] {
+  border-color: #dce5ee !important;
+}
+
+html[data-theme="light"] .marketing-workspace [class*="text-slate-400"],
+html[data-theme="light"] .marketing-workspace [class*="text-slate-500"] {
+  color: #5c7087 !important;
+}
+
+html[data-theme="light"] .marketing-workspace nav[aria-label="Vistas CRM"] {
+  background: #ffffff !important;
+  border-color: #e1e8f0 !important;
+}
+
+html[data-theme="light"] .ceo-dashboard .ceo-hero {
+  color: #24364b !important;
+  background:
+    radial-gradient(ellipse at 82% 12%, rgb(244 199 93 / 17%), transparent 22rem),
+    radial-gradient(ellipse at 10% 100%, rgb(112 173 228 / 9%), transparent 25rem),
+    linear-gradient(120deg, #f5f7fa, #fffdf7 58%, #f4f6f9) !important;
+  border-color: #e5dfcf !important;
+  box-shadow: 0 12px 32px rgb(45 55 70 / 7%), inset 0 1px #ffffff !important;
+}
+
+html[data-theme="light"] .ceo-dashboard .ceo-hero [class~="text-white"] {
+  color: #26384d !important;
+}
+
+html[data-theme="light"] .ceo-dashboard .ceo-card {
+  background: #ffffff !important;
+  border-color: #e1e8f0 !important;
+  box-shadow: 0 8px 24px rgb(35 62 92 / 5%) !important;
+}
+
+html[data-theme="light"] .ceo-dashboard .ceo-card [class*="bg-black/"] {
+  background: #f2f5f8 !important;
+}
+
+html[data-theme="light"] .ceo-dashboard .ceo-card [class*="border-white/"] {
+  border-color: #e1e8f0 !important;
+}
+
+html[data-theme="light"] .ceo-dashboard [class*="text-amber-100"],
+html[data-theme="light"] .ceo-dashboard [class*="text-amber-200"] {
+  color: #946500 !important;
+}
+
+html[data-theme="light"] .ceo-dashboard > section.rounded-2xl {
+  background: #ffffff !important;
+  border-color: #e1e8f0 !important;
+  box-shadow: 0 6px 20px rgb(35 62 92 / 4%) !important;
+}
+
+html[data-theme="light"] .ceo-dashboard > section.rounded-2xl > div[class*="bg-black/"] {
+  background: #f1f5f9 !important;
+  border-color: #e1e8f0 !important;
+}
+
+.podium-card--silver { --podium-aura: rgb(148 163 184 / 23%); }
+.podium-card--gold { --podium-aura: rgb(251 191 36 / 35%); }
+.podium-card--bronze { --podium-aura: rgb(249 115 22 / 23%); }
+.podium-card::before {
+  content: "" !important;
+  position: absolute;
+  z-index: 0;
+  top: -3.5rem;
+  right: -18%;
+  left: -18%;
+  display: block !important;
+  height: 82%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, var(--podium-aura) 0%, transparent 70%);
+  filter: blur(22px);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+html[data-theme="light"] .podium-card--silver { --podium-aura: rgb(119 149 185 / 28%); }
+html[data-theme="light"] .podium-card--gold { --podium-aura: rgb(234 179 8 / 31%); }
+html[data-theme="light"] .podium-card--bronze { --podium-aura: rgb(234 120 61 / 25%); }
+
+@media (max-width: 767px) {
+  .marketing-workspace nav[aria-label="Vistas CRM"] {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+  }
+
+  .marketing-workspace nav[aria-label="Vistas CRM"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  .marketing-workspace nav[aria-label="Vistas CRM"] > button {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .ceo-dashboard .ceo-hero {
+    border-radius: 1.25rem !important;
+    padding: 1.15rem !important;
+  }
+
+  .ceo-dashboard > section.rounded-2xl > div.grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="light"] .app-main::after {
+    animation: none !important;
+  }
+}

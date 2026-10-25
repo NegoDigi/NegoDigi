@@ -18,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" data-theme="dark">
+    <html lang="es" data-theme="light">
       <head>
         <link rel="preconnect" href="https://zttclifwjyedxapgpwfb.supabase.co" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://zttclifwjyedxapgpwfb.supabase.co" />

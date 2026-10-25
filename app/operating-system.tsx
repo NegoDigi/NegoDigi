@@ -123,8 +123,8 @@ function LabelList(props: ChartLabelListProps) {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 type AppRole = "owner" | "admin" | "ceo" | "editor" | "client" | "affiliate";
 type PortalRole = "Dirección" | "Editor" | "Cliente";
-// This is deliberately UI-only. It is never persisted or used to authorize a
-// Supabase request; the authenticated profile remains the source of truth.
+// This is deliberately UI-only. Remembering it restores only the local view;
+// the authenticated Supabase profile remains the source of truth for access.
 type AdminPreviewRole = Exclude<PortalRole, "Dirección"> | null;
 type AppearanceTheme = "light" | "dark";
 type ViewId =
@@ -1041,7 +1041,7 @@ const LEGACY_PREVIEW_STORAGE_KEYS = [
   "negodigi-preview-client-id",
 ] as const;
 const NAVIGATION_STORAGE_KEY = "negodigi-navigation-state-v2";
-const APPEARANCE_DEFAULT_MIGRATION_KEY = "negodigi-appearance-default-v2";
+const APPEARANCE_DEFAULT_MIGRATION_KEY = "negodigi-appearance-default-v3";
 type PersistedProductionNavigation = {
   section?: "principal" | "management" | "history" | "services";
   tab?: "pending" | "planned" | "history" | "corrections";
@@ -1066,6 +1066,9 @@ type PersistedCeoNavigation = {
 };
 type PersistedNavigation = {
   view?: ViewId;
+  previewRole?: AdminPreviewRole;
+  editorPreviewId?: string;
+  clientPreviewId?: string;
   production?: PersistedProductionNavigation;
   workspace?: PersistedWorkspaceNavigation;
   ceo?: PersistedCeoNavigation;
@@ -1090,6 +1093,8 @@ function isViewId(value: unknown): value is ViewId {
       "conocimiento",
       "ajustes",
       "nucleo",
+      "editor_home",
+      "editor_news",
       "editor_production",
       "editor_performance",
     ].includes(value)
@@ -1102,6 +1107,9 @@ function readNavigationState(): PersistedNavigation {
       window.localStorage.getItem(NAVIGATION_STORAGE_KEY) || "null",
     ) as {
       view?: unknown;
+      previewRole?: unknown;
+      editorPreviewId?: unknown;
+      clientPreviewId?: unknown;
       production?: Record<string, unknown>;
       workspace?: Record<string, unknown>;
       ceo?: Record<string, unknown>;
@@ -1111,6 +1119,18 @@ function readNavigationState(): PersistedNavigation {
     const ceo = parsed?.ceo;
     return {
       view: isViewId(parsed?.view) ? parsed.view : undefined,
+      previewRole:
+        parsed?.previewRole === "Editor" || parsed?.previewRole === "Cliente"
+          ? parsed.previewRole
+          : null,
+      editorPreviewId:
+        typeof parsed?.editorPreviewId === "string"
+          ? parsed.editorPreviewId.slice(0, 100)
+          : undefined,
+      clientPreviewId:
+        typeof parsed?.clientPreviewId === "string"
+          ? parsed.clientPreviewId.slice(0, 100)
+          : undefined,
       production:
         production && typeof production === "object"
           ? {
@@ -1197,6 +1217,9 @@ function readNavigationState(): PersistedNavigation {
 }
 function updateNavigationState(patch: {
   view?: ViewId;
+  previewRole?: AdminPreviewRole;
+  editorPreviewId?: string;
+  clientPreviewId?: string;
   production?: PersistedProductionNavigation;
   workspace?: PersistedWorkspaceNavigation;
   ceo?: PersistedCeoNavigation;
@@ -2377,7 +2400,7 @@ export function OperatingSystem() {
     toast.success(message, { id: `success:${message}`, duration: 3500 });
   }, []);
   const [view, setView] = React.useState<ViewId>("inicio");
-  const [appearance, setAppearance] = React.useState<AppearanceTheme>("dark");
+  const [appearance, setAppearance] = React.useState<AppearanceTheme>("light");
   const [privateMode, setPrivateMode] = React.useState(false);
   const [showNewJob, setShowNewJob] = React.useState(false);
   const [showNotifications, setShowNotifications] = React.useState(false);
@@ -2391,6 +2414,8 @@ export function OperatingSystem() {
   const [previewRole, setPreviewRole] = React.useState<AdminPreviewRole>(null);
   const [editorPreviewId, setEditorPreviewId] = React.useState("");
   const [clientPreviewId, setClientPreviewId] = React.useState("");
+  const adminPreviewRestored = React.useRef(false);
+  const preserveAdminPreviewOnLogout = React.useRef(false);
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     setClassicMode(new URLSearchParams(window.location.search).get("layout") === "classic");
@@ -2475,10 +2500,10 @@ export function OperatingSystem() {
     const saved = window.localStorage.getItem("negodigi-appearance");
     const alreadyMigrated =
       window.localStorage.getItem(APPEARANCE_DEFAULT_MIGRATION_KEY) === "1";
-    // The legacy branded option was removed. Keep the user's valid preference
-    // and safely move every older value to the refined dark appearance.
+    // A saved choice always wins; new or older installations without a valid
+    // choice start in the lighter, softer appearance.
     const nextTheme: AppearanceTheme =
-      saved === "light" || saved === "dark" ? saved : "dark";
+      saved === "light" || saved === "dark" ? saved : "light";
     if (!alreadyMigrated) {
       window.localStorage.setItem(APPEARANCE_DEFAULT_MIGRATION_KEY, "1");
       window.localStorage.setItem("negodigi-appearance", nextTheme);
@@ -2506,6 +2531,28 @@ export function OperatingSystem() {
       setNavigationRevision((value) => value + 1);
     }
   }, []);
+  React.useEffect(() => {
+    if (preserveAdminPreviewOnLogout.current) {
+      preserveAdminPreviewOnLogout.current = false;
+      return;
+    }
+    if (!isAdministrativeRole(profile?.role)) {
+      adminPreviewRestored.current = false;
+      return;
+    }
+    if (!adminPreviewRestored.current) {
+      const savedNavigation = readNavigationState();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPreviewRole(savedNavigation.previewRole || null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setEditorPreviewId(savedNavigation.editorPreviewId || "");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setClientPreviewId(savedNavigation.clientPreviewId || "");
+      adminPreviewRestored.current = true;
+      return;
+    }
+    updateNavigationState({ previewRole, editorPreviewId, clientPreviewId });
+  }, [profile?.role, previewRole, editorPreviewId, clientPreviewId]);
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("negodigi-private-mode", privateMode ? "1" : "0");
@@ -7486,10 +7533,19 @@ export function OperatingSystem() {
     setNavigationRevision((value) => value + 1);
   };
   const signOut = async () => {
+    preserveAdminPreviewOnLogout.current = true;
+    updateNavigationState({ previewRole, editorPreviewId, clientPreviewId });
     setPreviewRole(null);
     setEditorPreviewId("");
     setClientPreviewId("");
-    await supabase.auth.signOut();
+    const { error: signOutError } = await supabase.auth.signOut();
+    if (signOutError) {
+      preserveAdminPreviewOnLogout.current = false;
+      setPreviewRole(previewRole);
+      setEditorPreviewId(editorPreviewId);
+      setClientPreviewId(clientPreviewId);
+      setError(signOutError.message);
+    }
   };
   const editorWorkspace = (initialSection: EditorWorkspaceSection) => (
     <EditorDashboard
@@ -10681,14 +10737,6 @@ function EditorNewsWorkspace({
             <h3 className="text-2xl font-black uppercase tracking-[.18em] text-white sm:text-4xl">
               Editor del mes
             </h3>
-            <button
-              type="button"
-              onClick={() => setHistoryOpen((open) => !open)}
-              aria-expanded={historyOpen}
-              className="mt-2 text-[10px] font-bold uppercase tracking-[.12em] text-amber-200 transition hover:text-amber-100"
-            >
-              {historyOpen ? "Ocultar reconocimientos" : "Ver reconocimientos"}
-            </button>
           </div>
         </div>
       </div>
