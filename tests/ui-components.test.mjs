@@ -59,6 +59,12 @@ test("keeps the universe presentation and the complete handbook resources", asyn
 
   assert.match(css, /\.general-universe/);
   assert.match(css, /\.universe-node-editor-handbook/);
+  assert.match(css, /\.page-heading-blue-panel/);
+  assert.match(css, /\.directory-table-wrap/);
+  assert.match(source, /Podio actual del equipo/);
+  assert.match(source, /function RestoredHandbookView/);
+  assert.match(source, /pages\(manualPages, "Manual completo"\)/);
+  assert.match(source, /Documentación legal/);
   assert.match(source, /MANUAL-\$\{String\(index \+ 1\)/);
   assert.match(source, /RANKING-EDITOR-DEL-MES\.png/);
   assert.match(source, /files=\{nucleoFiles\}/);

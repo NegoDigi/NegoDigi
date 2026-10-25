@@ -7957,7 +7957,7 @@ export function OperatingSystem() {
         EDITOR_MANUAL_ENABLED_FOR_ALL ||
         Boolean(selectedEditor?.name?.toLowerCase().includes("negobot"));
       return canOpenEditorManual ? (
-        <HandbookView
+        <RestoredHandbookView
           files={nucleoFiles}
           editorId={selectedEditor?.id || profile?.editor_id || null}
           onOpenFile={getAttachmentUrl}
@@ -42290,6 +42290,201 @@ function HandbookView({ files = [], editorId = null, onOpenFile }: HandbookViewP
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function RestoredHandbookView({ files = [], editorId = null, onOpenFile }: HandbookViewProps) {
+  const [area, setArea] = React.useState<"home" | "handbook" | "formation">("home");
+  const [section, setSection] = React.useState<"home" | "tutorial" | "legal" | "workflow" | "bonifications">("home");
+  const [tutorialTab, setTutorialTab] = React.useState<"manual" | "visual">("manual");
+  const [legalTab, setLegalTab] = React.useState<"policy" | "contract">("policy");
+  const [bonusTab, setBonusTab] = React.useState<"ranking" | "variable">("ranking");
+  const [zoom, setZoom] = React.useState(1);
+  const [viewer, setViewer] = React.useState<{ title: string; source: string } | null>(null);
+  const [contractUrl, setContractUrl] = React.useState<string | null>(null);
+  const [contractLoading, setContractLoading] = React.useState(false);
+
+  const manualPages = Array.from(
+    { length: 14 },
+    (_, index) => `/tutorial/MANUAL-${String(index + 1).padStart(2, "0")}.jpg?v=handbook-20261014`,
+  );
+  const policyPages = [1, 2, 3].map(
+    (number) => `/tutorial/POLITICAS-${number}.jpg?v=handbook-20261014`,
+  );
+  const workflowPages = [1, 2].map(
+    (number) => `/tutorial/COMO-TRABAJAMOS-${number}.jpg?v=handbook-20261014`,
+  );
+  const editorContract = files.find(
+    (file) => file.file_kind === "contract" && (!editorId || file.editor_id === editorId),
+  );
+
+  React.useEffect(() => {
+    let active = true;
+    if (section !== "legal" || legalTab !== "contract" || !editorContract) {
+      setContractUrl(null);
+      setContractLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+    if (editorContract.external_url) {
+      setContractUrl(editorContract.external_url);
+      return () => {
+        active = false;
+      };
+    }
+    if (!onOpenFile) return undefined;
+    setContractLoading(true);
+    void onOpenFile(editorContract.storage_bucket, editorContract.storage_path)
+      .then((url) => {
+        if (active) setContractUrl(url);
+      })
+      .finally(() => {
+        if (active) setContractLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [editorContract, legalTab, onOpenFile, section]);
+
+  const openHandbookSection = (
+    next: "tutorial" | "legal" | "workflow" | "bonifications",
+  ) => {
+    setSection(next);
+    setZoom(1);
+  };
+
+  const pages = (sources: string[], label: string) => (
+    <div className="mt-5 space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[.08] bg-[#111722] px-4 py-3">
+        <p className="text-xs font-semibold text-slate-300">{label} · {sources.length} páginas</p>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setZoom((value) => Math.max(0.7, value - 0.1))} className="grid size-8 place-items-center rounded-xl border border-white/[.1] text-sm text-slate-300">−</button>
+          <span className="w-12 text-center text-xs font-semibold text-sky-300">{Math.round(zoom * 100)}%</span>
+          <button type="button" onClick={() => setZoom((value) => Math.min(1.35, value + 0.1))} className="grid size-8 place-items-center rounded-xl border border-white/[.1] text-sm text-slate-300">+</button>
+          <button type="button" onClick={() => setZoom(1)} className="rounded-xl border border-white/[.1] px-3 py-2 text-xs font-semibold text-slate-300">Restablecer</button>
+        </div>
+      </div>
+      <div className="space-y-5 overflow-x-auto rounded-2xl border border-white/[.08] bg-[#07101d] p-4 sm:p-5">
+        {sources.map((source, index) => (
+          <img
+            key={source}
+            src={source}
+            alt={`${label} · página ${index + 1}`}
+            className="mx-auto block h-auto max-w-full rounded-lg bg-white shadow-2xl shadow-black/30"
+            style={{ width: `${50 * zoom}%` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  const cardClass = "group min-h-44 rounded-2xl border border-white/[.08] bg-[#101722]/90 p-5 text-left transition hover:-translate-y-1 hover:border-sky-300/35 hover:bg-[#131d2b]";
+  const backToHandbook = (
+    <button type="button" onClick={() => { setSection("home"); setContractUrl(null); }} className="inline-flex items-center gap-2 rounded-xl border border-white/[.08] px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-white/[.05] hover:text-white">← Volver a Handbook</button>
+  );
+
+  if (area === "home") {
+    return (
+      <div className="space-y-6">
+        <PageHeading eyebrow="Equipo" title="Conocimiento" description="Recursos de trabajo y formación del equipo." minimal bluePanel />
+        <div className="grid gap-4 md:grid-cols-2">
+          <button type="button" onClick={() => setArea("handbook")} className={cardClass}>
+            <div className="grid size-11 place-items-center rounded-xl bg-sky-400/10 text-sky-200"><BookOpen className="size-5" /></div>
+            <h2 className="mt-5 text-lg font-semibold text-white">Handbook</h2>
+            <p className="mt-2 text-sm leading-5 text-slate-400">Manual, documentación, forma de trabajo y sistema de bonificaciones.</p>
+          </button>
+          <button type="button" onClick={() => setArea("formation")} className={cardClass}>
+            <div className="grid size-11 place-items-center rounded-xl bg-sky-400/10 text-sky-200"><Sparkles className="size-5" /></div>
+            <h2 className="mt-5 text-lg font-semibold text-white">Formación</h2>
+            <p className="mt-2 text-sm leading-5 text-slate-400">Espacio preparado para futuras guías y formación del equipo.</p>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (area === "formation") {
+    return (
+      <div className="space-y-4">
+        <button type="button" onClick={() => setArea("home")} className="inline-flex items-center gap-2 rounded-xl border border-white/[.08] px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-white/[.05] hover:text-white">← Volver a Conocimiento</button>
+        <Panel className="p-5 sm:p-7">
+          <PageHeading eyebrow="Equipo" title="Formación" description="Este apartado queda preparado para añadir formación interna." minimal />
+          <div className="mt-6 rounded-2xl border border-dashed border-white/[.12] bg-white/[.015] p-10 text-center">
+            <p className="text-sm font-semibold text-slate-200">Próximamente</p>
+            <p className="mt-2 text-sm text-slate-500">Aquí se añadirán las guías y materiales de formación.</p>
+          </div>
+        </Panel>
+      </div>
+    );
+  }
+
+  if (section === "home") {
+    return (
+      <div className="space-y-6">
+        <button type="button" onClick={() => setArea("home")} className="inline-flex items-center gap-2 rounded-xl border border-white/[.08] px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-white/[.05] hover:text-white">← Volver a Conocimiento</button>
+        <PageHeading eyebrow="Equipo" title="Handbook" description="Documentación interna de NegoDigi, organizada por apartados." minimal bluePanel />
+        <div className="grid gap-4 md:grid-cols-3">
+          <button type="button" onClick={() => openHandbookSection("tutorial")} className={cardClass}><div className="grid size-11 place-items-center rounded-xl bg-sky-400/10 text-sky-200"><LayoutDashboard className="size-5" /></div><h2 className="mt-5 text-lg font-semibold text-white">Tutorial de la aplicación</h2><p className="mt-2 text-sm leading-5 text-slate-400">Manual completo y guía visual de NegoDigi APP.</p></button>
+          <button type="button" onClick={() => openHandbookSection("legal")} className={cardClass}><div className="grid size-11 place-items-center rounded-xl bg-sky-400/10 text-sky-200"><LockKeyhole className="size-5" /></div><h2 className="mt-5 text-lg font-semibold text-white">Documentación legal</h2><p className="mt-2 text-sm leading-5 text-slate-400">Normativas, políticas y contrato del equipo.</p></button>
+          <button type="button" onClick={() => openHandbookSection("workflow")} className={cardClass}><div className="grid size-11 place-items-center rounded-xl bg-sky-400/10 text-sky-200"><ListChecks className="size-5" /></div><h2 className="mt-5 text-lg font-semibold text-white">Cómo trabajamos</h2><p className="mt-2 text-sm leading-5 text-slate-400">Guía completa del procedimiento de trabajo.</p></button>
+          <button type="button" onClick={() => openHandbookSection("bonifications")} className={cardClass}><div className="grid size-11 place-items-center rounded-xl bg-sky-400/10 text-sky-200"><Crown className="size-5" /></div><h2 className="mt-5 text-lg font-semibold text-white">Sistema de bonificaciones</h2><p className="mt-2 text-sm leading-5 text-slate-400">Editor del mes y bono extra variable del 5%.</p></button>
+        </div>
+      </div>
+    );
+  }
+
+  if (section === "bonifications") {
+    const sources = bonusTab === "ranking"
+      ? ["/tutorial/RANKING-EDITOR-DEL-MES.png", "/tutorial/RANKING-EDITOR-DEL-MES-BASE.png", "/tutorial/POLITICAS-EDITOR-DEL-MES.png"]
+      : ["/tutorial/BONO-EXTRA-5-PORCIENTO.png", "/tutorial/BONO-EXTRA-5-PORCIENTO-BASE.png", "/tutorial/POLITICAS-BONO-EXTRA.png"];
+    return <div className="space-y-4">{backToHandbook}<Panel className="p-5 sm:p-7"><PageHeading eyebrow="Handbook" title="Sistema de bonificaciones" description="Consulta las reglas del Editor del Mes y del bono extra del 5%." minimal /><div className="mt-6 inline-flex rounded-2xl border border-white/[.08] bg-[#0b1320] p-1"><button type="button" onClick={() => setBonusTab("ranking")} className={`rounded-xl px-4 py-2 text-sm font-semibold ${bonusTab === "ranking" ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30" : "text-slate-400"}`}>Editor del mes</button><button type="button" onClick={() => setBonusTab("variable")} className={`rounded-xl px-4 py-2 text-sm font-semibold ${bonusTab === "variable" ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30" : "text-slate-400"}`}>Bono extra del 5%</button></div>{pages(sources, bonusTab === "ranking" ? "Editor del mes" : "Bono extra del 5%")}</Panel></div>;
+  }
+
+  if (section === "workflow") {
+    return <div className="space-y-4">{backToHandbook}<Panel className="p-5 sm:p-7"><PageHeading eyebrow="Handbook" title="Cómo trabajamos" description="Guía operativa integrada dentro de NegoDigi APP." minimal />{pages(workflowPages, "Cómo trabajamos")}</Panel></div>;
+  }
+
+  if (section === "legal") {
+    const policies = legalTab === "policy";
+    return (
+      <div className="space-y-4">
+        {backToHandbook}
+        <Panel className="p-5 sm:p-7">
+          <PageHeading eyebrow="Handbook" title="Documentación legal" description="Normativas, políticas y documentación contractual del editor." minimal />
+          <div className="mt-6 inline-flex rounded-2xl border border-white/[.08] bg-[#0b1320] p-1">
+            <button type="button" onClick={() => setLegalTab("policy")} className={`rounded-xl px-4 py-2 text-sm font-semibold ${policies ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30" : "text-slate-400"}`}>Normativas y Políticas</button>
+            <button type="button" onClick={() => setLegalTab("contract")} className={`rounded-xl px-4 py-2 text-sm font-semibold ${!policies ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30" : "text-slate-400"}`}>Mi contrato</button>
+          </div>
+          {policies ? pages(policyPages, "Normativas y Políticas") : contractLoading ? (
+            <div className="mt-5 grid min-h-[420px] place-items-center rounded-2xl border border-white/[.08] bg-[#07101d] p-6 text-center text-sm text-slate-400">Cargando tu contrato…</div>
+          ) : contractUrl ? (
+            <div className="mt-5 space-y-3"><div className="flex justify-end"><a href={contractUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/[.1] px-3 py-2 text-xs font-semibold text-slate-200">Abrir en otra pestaña <ExternalLink className="size-3.5" /></a></div><iframe title="Mi contrato" src={contractUrl} className="h-[72vh] min-h-[620px] w-full rounded-2xl border border-white/[.08] bg-white" /></div>
+          ) : (
+            <div className="mt-5 grid min-h-[420px] place-items-center rounded-2xl border border-white/[.08] bg-[#07101d] p-6 text-center text-sm text-slate-400">{editorContract ? "No se pudo abrir el contrato asignado. Vuelve a intentarlo." : "No hay un contrato asignado a este editor todavía."}</div>
+          )}
+        </Panel>
+      </div>
+    );
+  }
+
+  const visualPages = [
+    ["Navegación", "VISUAL-01.jpg"], ["Centro de mando", "VISUAL-02.jpg"], ["Inicio", "VISUAL-03.jpg"], ["Noticias", "VISUAL-04.jpg"], ["Producción · Centro de trabajo", "VISUAL-05.jpg"], ["Producción · Calendario", "VISUAL-06.jpg"], ["Producción · Flujo", "VISUAL-07.jpg"], ["Producción · Previstos", "VISUAL-08.jpg"], ["Producción · Pendientes", "VISUAL-09.jpg"], ["Producción · Correcciones", "VISUAL-10.jpg"], ["Producción · Historial", "VISUAL-11.jpg"], ["Finanzas · Resumen", "VISUAL-12.jpg"], ["Finanzas · Historial", "VISUAL-13.jpg"],
+  ] as const;
+  return (
+    <div className="space-y-4">
+      {backToHandbook}
+      <Panel className="p-5 sm:p-7">
+        <PageHeading eyebrow="Handbook" title="Tutorial de la aplicación" description="Manual completo y recorrido visual por NegoDigi APP." minimal />
+        <div className="mt-6 inline-flex rounded-2xl border border-white/[.08] bg-[#0b1320] p-1"><button type="button" onClick={() => setTutorialTab("manual")} className={`rounded-xl px-4 py-2 text-sm font-semibold ${tutorialTab === "manual" ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30" : "text-slate-400"}`}>Manual completo</button><button type="button" onClick={() => setTutorialTab("visual")} className={`rounded-xl px-4 py-2 text-sm font-semibold ${tutorialTab === "visual" ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30" : "text-slate-400"}`}>Guía visual</button></div>
+        {tutorialTab === "manual" ? pages(manualPages, "Manual completo") : (
+          <>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">{visualPages.map(([title, file]) => <button key={title} type="button" onClick={() => setViewer({ title, source: `/tutorial/${file}?v=handbook-20261014` })} className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#0b1320] text-left transition hover:-translate-y-0.5 hover:border-sky-300/40"><div className="border-b border-white/[.07] px-4 py-3"><h3 className="text-sm font-semibold text-white">{title}</h3></div><div className="bg-[#07101d] p-2"><img src={`/tutorial/${file}?v=handbook-20261014`} alt={title} className="block h-auto w-full rounded-xl" loading="eager" /></div></button>)}</div>
+            {viewer && <div className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-3 backdrop-blur-sm sm:p-5" role="dialog" aria-modal="true" aria-label={viewer.title} onClick={() => setViewer(null)}><div className="max-h-full w-[96vw] max-w-[1600px] overflow-auto rounded-2xl border border-white/[.12] bg-[#07101d] p-3 shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-center justify-between gap-4"><h3 className="text-sm font-semibold text-white">{viewer.title}</h3><button type="button" onClick={() => setViewer(null)} className="rounded-lg border border-white/[.12] px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/[.06]">Cerrar</button></div><img src={viewer.source} alt={viewer.title} className="block h-auto w-full rounded-xl" /></div></div>}
+          </>
+        )}
+      </Panel>
     </div>
   );
 }
