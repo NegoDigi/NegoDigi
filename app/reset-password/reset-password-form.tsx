@@ -27,15 +27,26 @@ export function ResetPasswordForm() {
       if (active && session) setState("ready");
     });
 
-    const timer = window.setTimeout(() => {
-      void supabase.auth.getSession().then(({ data }) => {
-        if (active) setState(data.session ? "ready" : "invalid");
-      });
-    }, 700);
+    const tokenHash = new URLSearchParams(window.location.search).get("token_hash");
+    const resolveRecovery = async () => {
+      if (tokenHash) {
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: "recovery",
+        });
+        if (active) setState(!error && data.session ? "ready" : "invalid");
+        return;
+      }
+      window.setTimeout(() => {
+        void supabase.auth.getSession().then(({ data }) => {
+          if (active) setState(data.session ? "ready" : "invalid");
+        });
+      }, 700);
+    };
+    void resolveRecovery();
 
     return () => {
       active = false;
-      window.clearTimeout(timer);
       listener.subscription.unsubscribe();
     };
   }, [supabase]);
