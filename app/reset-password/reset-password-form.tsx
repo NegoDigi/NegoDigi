@@ -28,7 +28,13 @@ export function ResetPasswordForm() {
     });
 
     const tokenHash = new URLSearchParams(window.location.search).get("token_hash");
+    const authCode = new URLSearchParams(window.location.search).get("code");
     const resolveRecovery = async () => {
+      if (authCode) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
+        if (active) setState(!error && data.session ? "ready" : "invalid");
+        return;
+      }
       if (tokenHash) {
         const { data, error } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
