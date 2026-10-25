@@ -7,6 +7,305 @@
   scrollbar-color: #293245 transparent;
 }
 
+/* Universo principal: restaurado del diseño operativo original. */
+.general-universe-page {
+  position: relative;
+}
+
+.general-universe-title {
+  text-align: center;
+}
+
+.general-universe {
+  isolation: isolate;
+  position: relative;
+  min-height: 820px;
+  overflow: hidden;
+  border: 1px solid rgb(115 153 203 / 22%);
+  border-radius: 2rem;
+  background:
+    radial-gradient(circle, rgb(59 130 246 / 16%), transparent 18rem),
+    radial-gradient(circle at 18% 12%, rgb(44 220 255 / 9%), transparent 22rem),
+    linear-gradient(145deg, rgb(14 26 47 / 96%), rgb(6 12 24 / 99%));
+  box-shadow: inset 0 1px rgb(255 255 255 / 8%), 0 26px 70px rgb(0 0 0 / 25%);
+}
+
+.general-universe::before,
+.general-universe::after {
+  content: "";
+  z-index: -1;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+}
+
+.general-universe::before {
+  opacity: 0.34;
+  background-image: radial-gradient(rgb(164 208 255 / 70%) 0.7px, transparent 0.9px);
+  background-size: 48px 48px;
+  animation: universe-stars-drift 18s linear infinite;
+  mask-image: radial-gradient(circle, #000 10%, transparent 74%);
+}
+
+.general-universe::after {
+  background: radial-gradient(transparent 26%, rgb(2 7 16 / 68%) 78%);
+}
+
+.general-universe-stars {
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.6;
+  background-image:
+    radial-gradient(circle at 23% 28%, rgb(255 255 255 / 80%) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 73% 23%, rgb(94 204 255 / 80%) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 39% 82%, rgb(255 255 255 / 64%) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 86% 72%, rgb(132 165 255 / 70%) 0 1px, transparent 1.5px);
+  position: absolute;
+  inset: 0;
+}
+
+.general-universe-orbit {
+  pointer-events: none;
+  border: 1px solid rgb(114 184 255 / 22%);
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.general-universe-orbit::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #78d9ff;
+  box-shadow: 0 0 15px rgb(120 217 255 / 85%);
+}
+
+.general-universe-orbit-outer {
+  width: min(88%, 1020px);
+  height: min(86%, 650px);
+  animation: universe-orbit 22s linear infinite;
+}
+
+.general-universe-orbit-inner {
+  width: min(64%, 720px);
+  height: min(64%, 470px);
+  border-color: rgb(167 139 250 / 20%);
+  animation: universe-orbit-reverse 17s linear infinite;
+}
+
+.universe-node,
+.universe-core {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+}
+
+.universe-node {
+  width: 178px;
+  height: 178px;
+  padding: 1.1rem;
+  color: var(--node-color);
+  border: 1px solid var(--node-border);
+  background:
+    radial-gradient(circle at 36% 24%, rgb(255 255 255 / 16%), transparent 32%),
+    linear-gradient(150deg, var(--node-bg), rgb(8 15 28 / 94%));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 12%),
+    0 16px 38px rgb(0 0 0 / 25%),
+    0 0 0 9px color-mix(in srgb, var(--node-color) 7%, transparent),
+    0 0 34px color-mix(in srgb, var(--node-color) 12%, transparent);
+}
+
+.universe-node::before {
+  content: "";
+  position: absolute;
+  inset: -13px;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--node-color) 34%, transparent);
+  border-radius: inherit;
+  opacity: 0.56;
+  animation: universe-node-aura 4.4s ease-in-out infinite;
+}
+
+.universe-node::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: 1px;
+  opacity: 0.72;
+  background: conic-gradient(from 0deg, transparent 0 62%, color-mix(in srgb, var(--node-color) 90%, white) 72%, transparent 84% 100%);
+  animation: universe-node-scan 6s linear infinite;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.universe-node:hover {
+  z-index: 4;
+  border-color: color-mix(in srgb, var(--node-color) 78%, white);
+  transform: translate(-50%, -50%) scale(1.08);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 20%),
+    0 22px 48px rgb(0 0 0 / 34%),
+    0 0 35px color-mix(in srgb, var(--node-color) 24%, transparent);
+}
+
+.universe-node-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--node-color);
+  background: color-mix(in srgb, var(--node-color) 15%, transparent);
+}
+
+.universe-node-label {
+  margin-top: 0.75rem;
+  color: #f2f7ff;
+  font-size: 1.05rem;
+  font-weight: 750;
+}
+
+.universe-node-seo { --node-color: #f5ca62; --node-border: rgb(245 202 98 / 44%); --node-bg: rgb(125 87 23 / 40%); top: 13%; left: 50%; }
+.universe-node-admin { --node-color: #72b8ff; --node-border: rgb(114 184 255 / 42%); --node-bg: rgb(22 82 146 / 38%); top: 43%; left: 13%; }
+.universe-node-sales { --node-color: #b5a2ff; --node-border: rgb(181 162 255 / 42%); --node-bg: rgb(82 56 159 / 38%); top: 43%; left: 87%; }
+.universe-node-marketing { --node-color: #f3a1e8; --node-border: rgb(243 161 232 / 42%); --node-bg: rgb(128 49 111 / 34%); top: 86%; left: 26%; }
+.universe-node-nucleo { --node-color: #66dfb0; --node-border: rgb(102 223 176 / 42%); --node-bg: rgb(27 112 83 / 34%); top: 86%; left: 74%; }
+.universe-node-editor-home { --node-color: #72b8ff; --node-border: rgb(114 184 255 / 42%); --node-bg: rgb(22 82 146 / 38%); top: 13%; left: 50%; }
+.universe-node-editor-news { --node-color: #f5ca62; --node-border: rgb(245 202 98 / 44%); --node-bg: rgb(125 87 23 / 40%); top: 43%; left: 13%; }
+.universe-node-editor-production { --node-color: #66dfb0; --node-border: rgb(102 223 176 / 42%); --node-bg: rgb(27 112 83 / 34%); top: 43%; left: 87%; }
+.universe-node-editor-finance { --node-color: #b5a2ff; --node-border: rgb(181 162 255 / 42%); --node-bg: rgb(82 56 159 / 38%); top: 86%; left: 26%; }
+.universe-node-editor-handbook { --node-color: #f3a1e8; --node-border: rgb(243 161 232 / 42%); --node-bg: rgb(128 49 111 / 34%); top: 86%; left: 74%; }
+
+.universe-core {
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  width: 218px;
+  height: 218px;
+  padding: 1.6rem;
+  color: #b9ecff;
+  border: 1px solid rgb(104 200 255 / 68%);
+  background:
+    radial-gradient(circle at 35% 22%, rgb(255 255 255 / 20%), transparent 30%),
+    radial-gradient(circle, rgb(55 160 255 / 25%), transparent 66%),
+    #0b203c;
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 20%),
+    0 0 0 12px rgb(83 176 255 / 7%),
+    0 0 70px rgb(58 165 255 / 30%),
+    0 24px 70px rgb(0 0 0 / 40%);
+}
+
+.universe-core:hover {
+  border-color: #d5f5ff;
+  transform: translate(-50%, -50%) scale(1.07);
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 24%),
+    0 0 0 14px rgb(83 176 255 / 8%),
+    0 0 80px rgb(58 165 255 / 46%),
+    0 24px 70px rgb(0 0 0 / 45%);
+}
+
+.universe-core-rings {
+  position: absolute;
+  inset: -18px;
+  border: 1px solid rgb(111 213 255 / 27%);
+  border-radius: 50%;
+  animation: universe-core-pulse 3.8s ease-in-out infinite;
+}
+
+.universe-core-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  color: #b9ecff;
+  background: rgb(105 207 255 / 15%);
+}
+
+.universe-core-label {
+  margin-top: 0.75rem;
+  color: #f4fbff;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+@keyframes universe-orbit { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes universe-orbit-reverse { to { transform: translate(-50%, -50%) rotate(-360deg); } }
+@keyframes universe-stars-drift { to { transform: translate(-24px, 20px); } }
+@keyframes universe-core-pulse { 0%, 100% { opacity: 0.46; transform: scale(0.98); } 50% { opacity: 0.9; transform: scale(1.05); } }
+@keyframes universe-node-aura { 0%, 100% { opacity: 0.28; transform: scale(0.97); } 50% { opacity: 0.72; transform: scale(1.045); } }
+@keyframes universe-node-scan { to { transform: rotate(360deg); } }
+
+@media (max-width: 720px) {
+  .general-universe { min-height: 780px; }
+  .general-universe-orbit-outer { width: 84%; height: 80%; }
+  .general-universe-orbit-inner { width: 58%; height: 58%; }
+  .universe-node { width: 132px; height: 132px; }
+  .universe-node-seo, .universe-node-editor-home { top: 16%; left: 50%; }
+  .universe-node-admin { top: 45%; left: 23%; }
+  .universe-node-sales { top: 45%; left: 77%; }
+  .universe-node-marketing { top: 80%; left: 36%; }
+  .universe-node-nucleo { top: 80%; left: 64%; }
+  .universe-node-editor-news { top: 45%; left: 27%; }
+  .universe-node-editor-production { top: 45%; left: 73%; }
+  .universe-node-editor-finance { top: 78%; left: 40%; }
+  .universe-node-editor-handbook { top: 78%; left: 60%; }
+  .universe-core { width: 174px; height: 174px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .general-universe::before,
+  .general-universe-orbit,
+  .universe-core-rings,
+  .universe-node::before,
+  .universe-node::after { animation: none !important; }
+}
+
+html[data-theme="light"] .general-universe {
+  border-color: rgb(46 106 160 / 22%);
+  background:
+    radial-gradient(circle, rgb(59 130 246 / 13%), transparent 18rem),
+    radial-gradient(circle at 18% 12%, rgb(44 220 255 / 12%), transparent 22rem),
+    linear-gradient(145deg, rgb(239 247 255 / 98%), rgb(220 234 247 / 98%));
+  box-shadow: inset 0 1px rgb(255 255 255 / 90%), 0 22px 52px rgb(38 82 126 / 15%);
+}
+
+html[data-theme="light"] .general-universe::after { background: radial-gradient(transparent 28%, rgb(219 234 247 / 50%) 80%); }
+html[data-theme="light"] .general-universe::before { opacity: 0.18; }
+html[data-theme="light"] .universe-node {
+  background:
+    radial-gradient(circle at 36% 24%, rgb(255 255 255 / 95%), transparent 32%),
+    linear-gradient(150deg, color-mix(in srgb, var(--node-color) 13%, white), rgb(248 252 255 / 95%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 98%), 0 16px 34px rgb(49 89 129 / 14%), 0 0 0 8px color-mix(in srgb, var(--node-color) 5%, transparent);
+}
+html[data-theme="light"] .universe-node-label { color: #163a5e; }
+html[data-theme="light"] .universe-core {
+  background:
+    radial-gradient(circle at 35% 22%, rgb(255 255 255 / 92%), transparent 30%),
+    radial-gradient(circle, rgb(55 160 255 / 20%), transparent 66%),
+    #dff2ff;
+  box-shadow: inset 0 1px rgb(255 255 255 / 95%), 0 0 0 10px rgb(83 176 255 / 8%), 0 0 55px rgb(58 165 255 / 22%), 0 24px 60px rgb(49 89 129 / 18%);
+}
+html[data-theme="light"] .universe-core-label { color: #12385d; }
+
 @utility scrollbar-none {
   scrollbar-width: none;
 

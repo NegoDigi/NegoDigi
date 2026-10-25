@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -46,6 +46,26 @@ test("emits the catalog's animation and scrolling utilities", async () => {
   assert.match(css, /mask-image:/);
   assert.match(css, /tw-shimmer/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+});
+
+test("keeps the universe presentation and the complete handbook resources", async () => {
+  const css = await readCssTree(path.join(root, "dist"));
+  const source = await readFile(
+    path.join(root, "app", "operating-system.tsx"),
+    "utf8",
+  );
+  const tutorialDir = path.join(root, "public", "tutorial");
+  const tutorialFiles = await readdir(tutorialDir);
+
+  assert.match(css, /\.general-universe/);
+  assert.match(css, /\.universe-node-editor-handbook/);
+  assert.match(source, /MANUAL-\$\{String\(index \+ 1\)/);
+  assert.match(source, /RANKING-EDITOR-DEL-MES\.png/);
+  assert.match(source, /files=\{nucleoFiles\}/);
+  assert.equal(tutorialFiles.length, 38);
+
+  const firstManualPage = await stat(path.join(tutorialDir, "MANUAL-01.jpg"));
+  assert.ok(firstManualPage.size > 100_000);
 });
 
 test("forwards progress semantics to the primitive", async () => {

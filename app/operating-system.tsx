@@ -7956,7 +7956,15 @@ export function OperatingSystem() {
         displayedRole !== "Editor" ||
         EDITOR_MANUAL_ENABLED_FOR_ALL ||
         Boolean(selectedEditor?.name?.toLowerCase().includes("negobot"));
-      return canOpenEditorManual ? <HandbookView /> : <EditorManualLocked />;
+      return canOpenEditorManual ? (
+        <HandbookView
+          files={nucleoFiles}
+          editorId={selectedEditor?.id || profile?.editor_id || null}
+          onOpenFile={getAttachmentUrl}
+        />
+      ) : (
+        <EditorManualLocked />
+      );
     }
     return <ModuleView view={view} />;
   };
@@ -42020,73 +42028,266 @@ function PlanningView() {
   );
 }
 
-type HandbookSectionId = "handbook" | "tutorial" | "normativas" | "privacidad";
+type HandbookRoute =
+  | "home"
+  | "handbook"
+  | "tutorial"
+  | "legal"
+  | "workflow"
+  | "bonifications"
+  | "formation";
 
-function HandbookView() {
-  const [openSection, setOpenSection] = React.useState<HandbookSectionId | null>(null);
-  const sections: Record<HandbookSectionId, { title: string; intro: string; description: string; icon: React.ElementType; blocks: { title: string; body: string }[] }> = {
-    handbook: {
-      title: "Handbook",
-      intro: "La guía interna de NegoDigi: quiénes somos, cómo trabajamos y qué estándar esperamos en cada proyecto.",
-      description: "Cultura, herramientas, flujo de trabajo, entregas y pagos del equipo.",
-      icon: BookOpen,
-      blocks: [
-        { title: "Bienvenido a NegoDigi", body: "NegoDigi es una empresa digital en crecimiento, especializada en crear, gestionar y optimizar contenido para creadores, marcas y negocios. Cada persona del equipo participa en una relación de trabajo a largo plazo basada en responsabilidad, calidad, comunicación y resultados." },
-        { title: "Nuestra forma de trabajar", body: "No buscamos perfección instantánea: buscamos personas disciplinadas, responsables, puntuales, consistentes, adaptables, profesionales y con ganas reales de mejorar. Si aparece un bloqueo, un retraso o una duda, se comunica antes de que afecte a la entrega." },
-        { title: "Herramientas del equipo", body: "NegoDigi APP es la fuente operativa: ahí se consultan trabajos, fechas, entregas, correcciones, historial y pagos. Drive contiene los recursos y las entregas de cada cliente. El programa de edición y las herramientas de stock dependen del proyecto y de las indicaciones recibidas." },
-        { title: "Flujo completo", body: "1) Se asigna el trabajo con cliente, servicios, cantidad, fecha límite y recursos. 2) El editor revisa las pautas y trabaja dentro del plazo. 3) Entrega el enlace correcto desde la aplicación. 4) El cliente o administración revisa. 5) Si hay correcciones, se responde desde la ficha del trabajo. 6) Cuando queda aprobado, pasa a historial y se contabiliza para el pago." },
-        { title: "Entregas en Drive", body: "Usa la carpeta general del proyecto y respeta las carpetas existentes. No borres ni reorganices material sin autorización. Si el proyecto utiliza numeración, continúa la secuencia; crea un PACK nuevo solo cuando esté indicado. Entrega los vídeos en orden y comprueba que el enlace tiene permisos de acceso." },
-        { title: "Pagos y transparencia", body: "El importe de cada entrega aprobada se muestra en la aplicación. El pago se calcula desde el historial aprobado del periodo y se abona según la política vigente de NegoDigi. Si existe una discrepancia, se comunica con el nombre del trabajo y la evidencia, no se modifica información por cuenta propia." },
-      ],
-    },
-    tutorial: {
-      title: "Tutorial de la aplicación",
-      intro: "Este apartado queda preparado para añadir la guía visual de uso de NegoDigi APP.",
-      description: "Espacio reservado para tutoriales, capturas y vídeos de la aplicación.",
-      icon: LayoutDashboard,
-      blocks: [],
-    },
-    normativas: {
-      title: "Normativas de trabajo",
-      intro: "Este apartado queda preparado para organizar las normas internas de trabajo del equipo.",
-      description: "Horarios, entregas, comunicación, calidad y responsabilidades.",
-      icon: ShieldCheck,
-      blocks: [],
-    },
-    privacidad: {
-      title: "Políticas y privacidad",
-      intro: "Este apartado queda preparado para incorporar las políticas, privacidad y protección de la información.",
-      description: "Confidencialidad, accesos, datos de clientes y uso de recursos.",
-      icon: LockKeyhole,
-      blocks: [],
-    },
+type HandbookViewProps = {
+  files?: NucleoFile[];
+  editorId?: string | null;
+  onOpenFile?: (bucket: string, path: string) => Promise<string | null>;
+};
+
+const handbookBlocks = [
+  { title: "Bienvenido a NegoDigi", body: "NegoDigi es una empresa digital en crecimiento, especializada en crear, gestionar y optimizar contenido para creadores, marcas y negocios. Cada persona del equipo participa en una relación de trabajo a largo plazo basada en responsabilidad, calidad, comunicación y resultados." },
+  { title: "Nuestra forma de trabajar", body: "No buscamos perfección instantánea: buscamos personas disciplinadas, responsables, puntuales, consistentes, adaptables, profesionales y con ganas reales de mejorar. Si aparece un bloqueo, un retraso o una duda, se comunica antes de que afecte a la entrega." },
+  { title: "Herramientas del equipo", body: "NegoDigi APP es la fuente operativa: ahí se consultan trabajos, fechas, entregas, correcciones, historial y pagos. Drive contiene los recursos y las entregas de cada cliente. El programa de edición y las herramientas de stock dependen del proyecto y de las indicaciones recibidas." },
+  { title: "Flujo completo", body: "1) Se asigna el trabajo con cliente, servicios, cantidad, fecha límite y recursos. 2) El editor revisa las pautas y trabaja dentro del plazo. 3) Entrega el enlace correcto desde la aplicación. 4) El cliente o administración revisa. 5) Si hay correcciones, se responde desde la ficha del trabajo. 6) Cuando queda aprobado, pasa a historial y se contabiliza para el pago." },
+  { title: "Entregas en Drive", body: "Usa la carpeta general del proyecto y respeta las carpetas existentes. No borres ni reorganices material sin autorización. Si el proyecto utiliza numeración, continúa la secuencia; crea un PACK nuevo solo cuando esté indicado. Entrega los vídeos en orden y comprueba que el enlace tiene permisos de acceso." },
+  { title: "Pagos y transparencia", body: "El importe de cada entrega aprobada se muestra en la aplicación. El pago se calcula desde el historial aprobado del periodo y se abona según la política vigente de NegoDigi. Si existe una discrepancia, se comunica con el nombre del trabajo y la evidencia, no se modifica información por cuenta propia." },
+];
+
+const tutorialManualPages = Array.from(
+  { length: 14 },
+  (_, index) => `/tutorial/MANUAL-${String(index + 1).padStart(2, "0")}.jpg`,
+);
+const tutorialVisualPages = [
+  "Navegación",
+  "Centro de mando",
+  "Inicio",
+  "Noticias",
+  "Producción · Centro de trabajo",
+  "Producción · Calendario",
+  "Producción · Flujo",
+  "Producción · Previstos",
+  "Producción · Pendientes",
+  "Producción · Correcciones",
+  "Producción · Historial",
+  "Finanzas · Resumen",
+  "Finanzas · Historial",
+].map((title, index) => ({
+  title,
+  src: `/tutorial/VISUAL-${String(index + 1).padStart(2, "0")}.jpg`,
+}));
+
+function HandbookView({ files = [], editorId = null, onOpenFile }: HandbookViewProps) {
+  const [route, setRoute] = React.useState<HandbookRoute>("home");
+  const [tutorialMode, setTutorialMode] = React.useState<"manual" | "visual">("manual");
+  const [legalMode, setLegalMode] = React.useState<"policies" | "contract">("policies");
+  const [bonusMode, setBonusMode] = React.useState<"ranking" | "variable">("ranking");
+  const [zoom, setZoom] = React.useState(1);
+  const [viewer, setViewer] = React.useState<{ src: string; title: string } | null>(null);
+  const [contractUrl, setContractUrl] = React.useState<string | null>(null);
+  const [contractLoading, setContractLoading] = React.useState(false);
+
+  const editorContract = React.useMemo(
+    () =>
+      files.find(
+        (file) =>
+          file.file_kind === "contract" &&
+          (!editorId || file.editor_id === editorId),
+      ) || null,
+    [editorId, files],
+  );
+
+  React.useEffect(() => {
+    let active = true;
+    if (route !== "legal" || legalMode !== "contract" || !editorContract) {
+      setContractUrl(null);
+      setContractLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+    if (editorContract.external_url) {
+      setContractUrl(editorContract.external_url);
+      return () => {
+        active = false;
+      };
+    }
+    if (!onOpenFile) return undefined;
+    setContractLoading(true);
+    void onOpenFile(editorContract.storage_bucket, editorContract.storage_path)
+      .then((url) => {
+        if (active) setContractUrl(url);
+      })
+      .finally(() => {
+        if (active) setContractLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [editorContract, legalMode, onOpenFile, route]);
+
+  const goTo = (nextRoute: HandbookRoute) => {
+    setRoute(nextRoute);
+    setZoom(1);
+    setViewer(null);
   };
-  const current = openSection ? sections[openSection] : null;
-  const cards = Object.entries(sections) as [HandbookSectionId, (typeof sections)[HandbookSectionId]][];
+
+  const topCards: { id: HandbookRoute; title: string; description: string; icon: React.ElementType }[] = [
+    { id: "handbook", title: "Handbook", description: "Manual operativo, políticas, flujo de trabajo y sistema de bonificaciones.", icon: BookOpen },
+    { id: "formation", title: "Formación", description: "Espacio de aprendizaje y recursos formativos del equipo.", icon: Sparkles },
+  ];
+  const handbookCards: { id: HandbookRoute; title: string; description: string; icon: React.ElementType }[] = [
+    { id: "tutorial", title: "Tutorial de la aplicación", description: "Manual completo y recorrido visual por cada área de NegoDigi APP.", icon: LayoutDashboard },
+    { id: "legal", title: "Documentación legal", description: "Normativas, políticas internas y contrato personal.", icon: ShieldCheck },
+    { id: "workflow", title: "Cómo trabajamos", description: "Proceso operativo y estándares de colaboración del equipo.", icon: ListChecks },
+    { id: "bonifications", title: "Sistema de bonificaciones", description: "Ranking mensual, bonos variables y sus políticas.", icon: Crown },
+  ];
+
+  const renderCards = (cards: typeof topCards) => (
+    <div className="grid gap-4 md:grid-cols-2">
+      {cards.map((card) => {
+        const Icon = card.icon;
+        return (
+          <button
+            key={card.id}
+            type="button"
+            onClick={() => goTo(card.id)}
+            className="group min-h-44 rounded-2xl border border-white/[.08] bg-[#101722]/90 p-5 text-left shadow-lg shadow-black/10 transition hover:-translate-y-1 hover:border-sky-300/35 hover:bg-[#131d2b]"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <span className="grid size-11 place-items-center rounded-xl bg-sky-400/10 text-sky-200 transition group-hover:bg-sky-400/20"><Icon className="size-5" /></span>
+              <ChevronRight className="mt-2 size-4 text-slate-600 transition group-hover:translate-x-1 group-hover:text-sky-200" />
+            </div>
+            <h2 className="mt-5 text-lg font-semibold text-white">{card.title}</h2>
+            <p className="mt-2 text-sm leading-5 text-slate-400">{card.description}</p>
+            <p className="mt-4 text-xs font-semibold text-sky-200">Abrir apartado</p>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderImagePages = (pages: { src: string; title: string }[]) => (
+    <div className="space-y-5">
+      <div className="sticky top-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[.08] bg-[#0d131d]/95 p-3 shadow-xl shadow-black/20 backdrop-blur">
+        <p className="text-xs font-semibold text-slate-300">{pages.length} páginas</p>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setZoom((value) => Math.max(0.7, value - 0.1))} className="grid size-9 place-items-center rounded-xl border border-white/[.08] text-sm font-bold text-slate-200 hover:bg-white/[.05]" aria-label="Alejar">−</button>
+          <button type="button" onClick={() => setZoom(1)} className="h-9 rounded-xl border border-white/[.08] px-3 text-xs font-semibold text-slate-300 hover:bg-white/[.05]">{Math.round(zoom * 100)}%</button>
+          <button type="button" onClick={() => setZoom((value) => Math.min(1.35, value + 0.1))} className="grid size-9 place-items-center rounded-xl border border-white/[.08] text-sm font-bold text-slate-200 hover:bg-white/[.05]" aria-label="Acercar">+</button>
+        </div>
+      </div>
+      <div className="space-y-5 overflow-x-auto pb-2">
+        {pages.map((page, index) => (
+          <figure key={page.src} className="mx-auto overflow-hidden rounded-2xl border border-white/[.08] bg-white shadow-2xl shadow-black/20" style={{ width: `${Math.min(100, 76 * zoom)}%`, minWidth: zoom > 1.05 ? 760 : undefined }}>
+            <img src={page.src} alt={`${page.title}, página ${index + 1}`} className="block h-auto w-full" loading={index < 2 ? "eager" : "lazy"} />
+          </figure>
+        ))}
+      </div>
+    </div>
+  );
+
+  let content: React.ReactNode;
+  if (route === "home") {
+    content = renderCards(topCards);
+  } else if (route === "handbook") {
+    content = renderCards(handbookCards);
+  } else if (route === "formation") {
+    content = (
+      <Panel className="p-8 text-center sm:p-12">
+        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-sky-400/10 text-sky-200"><Sparkles className="size-6" /></span>
+        <h2 className="mt-5 text-xl font-semibold text-white">Formación</h2>
+        <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">Próximamente encontrarás aquí los recursos y programas de formación del equipo.</p>
+      </Panel>
+    );
+  } else if (route === "tutorial") {
+    content = (
+      <Panel className="p-4 sm:p-6">
+        <div className="mb-5 flex flex-wrap gap-2">
+          <button type="button" onClick={() => setTutorialMode("manual")} className={`rounded-xl border px-4 py-2 text-xs font-semibold ${tutorialMode === "manual" ? "border-sky-300/40 bg-sky-400/10 text-sky-100" : "border-white/[.08] text-slate-400"}`}>Manual completo</button>
+          <button type="button" onClick={() => setTutorialMode("visual")} className={`rounded-xl border px-4 py-2 text-xs font-semibold ${tutorialMode === "visual" ? "border-sky-300/40 bg-sky-400/10 text-sky-100" : "border-white/[.08] text-slate-400"}`}>Recorrido visual</button>
+        </div>
+        {tutorialMode === "manual" ? renderImagePages(tutorialManualPages.map((src, index) => ({ src, title: `Manual operativo ${index + 1}` }))) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {tutorialVisualPages.map((page, index) => (
+              <button key={page.src} type="button" onClick={() => setViewer(page)} className="group overflow-hidden rounded-2xl border border-white/[.08] bg-white/[.02] text-left transition hover:-translate-y-1 hover:border-sky-300/35">
+                <div className="aspect-[4/3] overflow-hidden bg-white"><img src={page.src} alt={page.title} className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.02]" loading={index < 6 ? "eager" : "lazy"} /></div>
+                <div className="flex items-center justify-between gap-3 p-4"><span className="text-sm font-semibold text-white">{page.title}</span><Eye className="size-4 shrink-0 text-sky-300" /></div>
+              </button>
+            ))}
+          </div>
+        )}
+      </Panel>
+    );
+  } else if (route === "legal") {
+    const policyPages = [1, 2, 3].map((number) => ({ src: `/tutorial/POLITICAS-${number}.jpg`, title: `Normativas y políticas ${number}` }));
+    content = (
+      <Panel className="p-4 sm:p-6">
+        <div className="mb-5 flex flex-wrap gap-2">
+          <button type="button" onClick={() => setLegalMode("policies")} className={`rounded-xl border px-4 py-2 text-xs font-semibold ${legalMode === "policies" ? "border-sky-300/40 bg-sky-400/10 text-sky-100" : "border-white/[.08] text-slate-400"}`}>Normativas y políticas</button>
+          <button type="button" onClick={() => setLegalMode("contract")} className={`rounded-xl border px-4 py-2 text-xs font-semibold ${legalMode === "contract" ? "border-sky-300/40 bg-sky-400/10 text-sky-100" : "border-white/[.08] text-slate-400"}`}>Mi contrato</button>
+        </div>
+        {legalMode === "policies" ? renderImagePages(policyPages) : contractLoading ? (
+          <div className="grid min-h-72 place-items-center text-sm text-slate-400">Cargando contrato…</div>
+        ) : contractUrl ? (
+          <div className="space-y-3">
+            <div className="flex justify-end"><a href={contractUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-sky-300/30 bg-sky-400/10 px-4 py-2 text-xs font-semibold text-sky-100">Abrir en otra pestaña <ExternalLink className="size-3.5" /></a></div>
+            <iframe title="Mi contrato" src={contractUrl} className="h-[72vh] min-h-[620px] w-full rounded-2xl border border-white/[.08] bg-white" />
+          </div>
+        ) : (
+          <div className="grid min-h-72 place-items-center rounded-2xl border border-dashed border-white/[.12] p-8 text-center"><div><FileText className="mx-auto size-8 text-slate-500" /><p className="mt-4 text-sm font-semibold text-slate-200">No hay un contrato disponible</p><p className="mt-2 text-sm text-slate-500">Cuando Dirección lo añada a tu ficha aparecerá aquí.</p></div></div>
+        )}
+      </Panel>
+    );
+  } else if (route === "workflow") {
+    content = <Panel className="p-4 sm:p-6">{renderImagePages([1, 2].map((number) => ({ src: `/tutorial/COMO-TRABAJAMOS-${number}.jpg`, title: `Cómo trabajamos ${number}` })))}</Panel>;
+  } else {
+    const bonusPages = bonusMode === "ranking"
+      ? [
+          { src: "/tutorial/RANKING-EDITOR-DEL-MES.png", title: "Ranking Editor del mes" },
+          { src: "/tutorial/RANKING-EDITOR-DEL-MES-BASE.png", title: "Base del ranking" },
+          { src: "/tutorial/POLITICAS-EDITOR-DEL-MES.png", title: "Políticas Editor del mes" },
+        ]
+      : [
+          { src: "/tutorial/BONO-EXTRA-5-PORCIENTO.png", title: "Bono extra variable" },
+          { src: "/tutorial/BONO-EXTRA-5-PORCIENTO-BASE.png", title: "Base del bono extra" },
+          { src: "/tutorial/POLITICAS-BONO-EXTRA.png", title: "Políticas del bono extra" },
+        ];
+    content = (
+      <Panel className="p-4 sm:p-6">
+        <div className="mb-5 flex flex-wrap gap-2">
+          <button type="button" onClick={() => setBonusMode("ranking")} className={`rounded-xl border px-4 py-2 text-xs font-semibold ${bonusMode === "ranking" ? "border-amber-300/40 bg-amber-300/10 text-amber-100" : "border-white/[.08] text-slate-400"}`}>Editor del mes</button>
+          <button type="button" onClick={() => setBonusMode("variable")} className={`rounded-xl border px-4 py-2 text-xs font-semibold ${bonusMode === "variable" ? "border-amber-300/40 bg-amber-300/10 text-amber-100" : "border-white/[.08] text-slate-400"}`}>Bono extra</button>
+        </div>
+        {renderImagePages(bonusPages)}
+      </Panel>
+    );
+  }
+
+  const routeTitle: Partial<Record<HandbookRoute, string>> = {
+    handbook: "Handbook",
+    tutorial: "Tutorial de la aplicación",
+    legal: "Documentación legal",
+    workflow: "Cómo trabajamos",
+    bonifications: "Sistema de bonificaciones",
+    formation: "Formación",
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeading eyebrow="Equipo" title="Conocimiento" description="Documentación interna del equipo, organizada por apartados independientes." minimal bluePanel />
-      {!current ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {cards.map(([id, card]) => {
-            const Icon = card.icon;
-            return (
-              <button key={id} type="button" onClick={() => setOpenSection(id)} className="group min-h-44 rounded-2xl border border-white/[.08] bg-[#101722]/90 p-5 text-left shadow-lg shadow-black/10 transition hover:-translate-y-1 hover:border-sky-300/35 hover:bg-[#131d2b]">
-                <div className="flex items-start justify-between gap-4"><span className="grid size-11 place-items-center rounded-xl bg-sky-400/10 text-sky-200 transition group-hover:bg-sky-400/20"><Icon className="size-5" /></span><ChevronRight className="mt-2 size-4 text-slate-600 transition group-hover:translate-x-1 group-hover:text-sky-200" /></div>
-                <h2 className="mt-5 text-lg font-semibold text-white">{card.title}</h2>
-                <p className="mt-2 text-sm leading-5 text-slate-400">{card.description}</p>
-                <p className="mt-4 text-xs font-semibold text-sky-200">Abrir apartado</p>
-              </button>
-            );
-          })}
+      <PageHeading eyebrow="Equipo" title="Conocimiento" description="Documentación, manuales y recursos internos de NegoDigi." minimal bluePanel />
+      {route !== "home" && (
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => goTo(route === "handbook" || route === "formation" ? "home" : "handbook")} className="inline-flex items-center gap-2 rounded-xl border border-white/[.08] px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-white/[.05] hover:text-white"><span aria-hidden="true">←</span> Volver a {route === "handbook" || route === "formation" ? "Conocimiento" : "Handbook"}</button>
+          <p className="text-sm font-semibold text-white">{routeTitle[route]}</p>
         </div>
-      ) : (
-        <div className="space-y-4">
-          <button type="button" onClick={() => setOpenSection(null)} className="inline-flex items-center gap-2 rounded-xl border border-white/[.08] px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-white/[.05] hover:text-white"><span aria-hidden="true">←</span> Volver a Conocimiento</button>
-          <Panel className="p-5 sm:p-7">
-            <div className="flex items-start gap-4"><span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sky-400/10 text-sky-200"><current.icon className="size-5" /></span><div><p className="text-[11px] font-bold uppercase tracking-[.16em] text-sky-300">Apartado del equipo</p><h2 className="mt-1 text-2xl font-semibold text-white">{current.title}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{current.intro}</p></div></div>
-            {current.blocks.length ? <div className="mt-7 grid gap-3 lg:grid-cols-2">{current.blocks.map((block, index) => <article key={block.title} className="rounded-2xl border border-white/[.07] bg-white/[.02] p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-400/10 text-xs font-bold text-sky-200">{String(index + 1).padStart(2, "0")}</span><h3 className="pt-1 text-sm font-semibold text-white">{block.title}</h3></div><p className="mt-3 text-sm leading-6 text-slate-400">{block.body}</p></article>)}</div> : <div className="mt-7 rounded-2xl border border-dashed border-white/[.12] bg-white/[.015] p-10 text-center"><p className="text-sm font-semibold text-slate-200">Apartado preparado</p><p className="mt-2 text-sm text-slate-500">Todavía no hay contenido aquí. Este espacio queda reservado para organizarlo.</p></div>}
-          </Panel>
+      )}
+      {content}
+      {viewer && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/85 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={viewer.title} onClick={() => setViewer(null)}>
+          <div className="relative max-h-[94vh] w-full max-w-6xl overflow-auto rounded-2xl border border-white/15 bg-[#0b1018] p-3 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <button type="button" onClick={() => setViewer(null)} className="sticky top-1 z-10 ml-auto grid size-10 place-items-center rounded-xl border border-white/10 bg-black/70 text-white" aria-label="Cerrar"><X className="size-5" /></button>
+            <img src={viewer.src} alt={viewer.title} className="mx-auto h-auto max-w-full rounded-xl bg-white" />
+            <p className="p-3 text-center text-sm font-semibold text-white">{viewer.title}</p>
+          </div>
         </div>
       )}
     </div>
