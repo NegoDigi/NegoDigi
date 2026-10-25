@@ -17601,12 +17601,8 @@ function VisualTeamPodium({
           return (
             <div
               key={entry?.row.editor_id || `podium-${places[index]}`}
-              className={`relative isolate flex flex-col items-center justify-end overflow-visible rounded-t-3xl border px-4 pb-4 pt-8 text-center ${colors[index]} ${index === 1 ? (large ? "min-h-64 shadow-[0_-14px_40px_rgba(251,191,36,.16)]" : "min-h-56 shadow-[0_-14px_40px_rgba(251,191,36,.16)]") : large ? "min-h-48" : "min-h-40"}`}
+              className={`podium-card relative isolate flex flex-col items-center justify-end overflow-visible rounded-t-3xl border px-4 pb-4 pt-8 text-center ${colors[index]} ${index === 1 ? (large ? "min-h-64 shadow-[0_-14px_40px_rgba(251,191,36,.16)]" : "min-h-56 shadow-[0_-14px_40px_rgba(251,191,36,.16)]") : large ? "min-h-48" : "min-h-40"}`}
             >
-              <span
-                aria-hidden="true"
-                className={`pointer-events-none absolute -inset-3 z-0 rounded-[inherit] blur-xl ${index === 1 ? "bg-amber-300/25" : index === 0 ? "bg-sky-200/15" : "bg-orange-300/20"}`}
-              />
               <span
                 className={`absolute z-10 -top-10 max-w-[calc(100%-1rem)] truncate rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${index === 1 ? "border-amber-300/45 bg-amber-300/15 text-amber-100" : index === 0 ? "border-slate-200/20 bg-slate-200/[.08] text-slate-100" : "border-orange-300/30 bg-orange-300/[.09] text-orange-100"}`}
               >
@@ -39304,55 +39300,42 @@ function TeamMonthRankingSection({
   ranking: ReturnType<typeof scoredPerformance>;
   periodKey: string;
 }) {
-  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [activeView, setActiveView] = React.useState<"ranking" | "analytics">(
+    "ranking",
+  );
   const podium = [2, 1, 3].map((place) =>
     ranking.find((entry) => entry.rank === place),
   );
   const rest = ranking.filter((entry) => !entry.rank || entry.rank > 3);
   return (
     <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-3xl border border-sky-200/[.14] bg-[radial-gradient(circle_at_50%_-80%,rgba(251,191,36,.14),transparent_58%),linear-gradient(115deg,#111a29,#171b20_54%,#111722)] px-5 py-6 shadow-[0_22px_60px_rgba(0,0,0,.18)] sm:px-8 sm:py-7">
-        <div className="pointer-events-none absolute inset-x-1/4 -top-24 h-44 rounded-full bg-sky-400/[.06] blur-3xl" />
-        <div className="relative flex items-center justify-center">
-          <div className="text-center">
-            <Crown className="mx-auto size-5 text-amber-300" aria-hidden="true" />
-            <h2 className="mt-2 text-2xl font-black uppercase tracking-[.18em] text-white sm:text-4xl">
-              Editor del mes
-            </h2>
-            <p className="mt-2 text-xs font-medium uppercase tracking-[.16em] text-slate-400">
-              {formatPeriodLabel(periodKey)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setHistoryOpen((open) => !open);
-              if (!historyOpen) {
-                window.setTimeout(() =>
-                  document.getElementById("editor-month-history")?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  }), 0);
-              }
-            }}
-            aria-expanded={historyOpen}
-            className="absolute right-0 top-0 rounded-full border border-amber-200/20 bg-amber-200/[.07] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.12em] text-amber-100 transition hover:border-amber-200/40 hover:bg-amber-200/[.14]"
-          >
-            Historial
-          </button>
-        </div>
+      <div
+        className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[.08] bg-[#0b1018]/80 p-2"
+        aria-label="Vistas del editor del mes"
+      >
+        <button
+          type="button"
+          onClick={() => setActiveView("ranking")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${activeView === "ranking" ? "bg-blue-600 text-white shadow-[0_8px_22px_rgba(37,99,235,.28)]" : "text-slate-400 hover:bg-white/[.04] hover:text-white"}`}
+        >
+          Ranking
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveView("analytics")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${activeView === "analytics" ? "bg-blue-600 text-white shadow-[0_8px_22px_rgba(37,99,235,.28)]" : "text-slate-400 hover:bg-white/[.04] hover:text-white"}`}
+        >
+          Analítica
+        </button>
       </div>
-      {historyOpen && (
-        <p className="rounded-2xl border border-amber-200/15 bg-amber-200/[.04] px-4 py-3 text-xs text-amber-100/80">
-          El historial completo está disponible al final de este panel.
-        </p>
-      )}
-      <VisualTeamPodium
-        entries={podium}
-        periodLabel={formatPeriodLabel(periodKey)}
-        large
-      />
-      <Panel className="p-5">
+      {activeView === "ranking" && (
+        <>
+          <VisualTeamPodium
+            entries={podium}
+            periodLabel={formatPeriodLabel(periodKey)}
+            large
+          />
+          <Panel className="p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold text-white">Ranking del mes</h2>
@@ -39390,8 +39373,11 @@ function TeamMonthRankingSection({
             </p>
           )}
         </div>
-      </Panel>
-      <Panel className="overflow-x-auto p-5">
+          </Panel>
+        </>
+      )}
+      {activeView === "analytics" && (
+        <Panel className="overflow-x-auto p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold text-white">Desglose de puntuación</h3>
@@ -39432,7 +39418,8 @@ function TeamMonthRankingSection({
             })}
           </tbody>
         </table>
-      </Panel>
+        </Panel>
+      )}
     </div>
   );
 }
