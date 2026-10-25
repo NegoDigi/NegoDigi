@@ -1105,6 +1105,25 @@ body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; 
   color: #142b4a;
 }
 
+.auth-background .auth-bubble {
+  position: absolute;
+  z-index: 0;
+  border: 1px solid rgba(37, 126, 231, .12);
+  border-radius: 999px;
+  background: rgba(83, 169, 255, .08);
+  box-shadow: 0 18px 45px rgba(37, 126, 231, .09), inset 0 0 22px rgba(255, 255, 255, .3);
+  filter: blur(.2px);
+  pointer-events: none;
+  animation: auth-bubble-drift 15s ease-in-out infinite;
+}
+.auth-background .auth-bubble--one { width: 15rem; height: 15rem; top: 8%; left: -5rem; }
+.auth-background .auth-bubble--two { width: 9rem; height: 9rem; right: 8%; top: 13%; animation-delay: -5s; animation-duration: 19s; }
+.auth-background .auth-bubble--three { width: 20rem; height: 20rem; right: -8rem; bottom: -7rem; animation-delay: -9s; animation-duration: 22s; }
+@keyframes auth-bubble-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .58; }
+  50% { transform: translate3d(18px, -16px, 0) scale(1.045); opacity: .9; }
+}
+
 @media (max-width: 767px) {
   .app-header { padding-inline: 0.75rem !important; }
   .app-main { padding: 1rem !important; }
@@ -1630,3 +1649,4 @@ html[data-theme=light] .operating-table tbody td{border-bottom-color:#42668f1f!i
 @supports (color:color-mix(in lab, red, red)){.navigation-hub-card:hover{box-shadow:0 16px 34px color-mix(in srgb, var(--foreground) 8%, transparent)!important}
 }
 html[data-theme=light] .navigation-hub-card{background:linear-gradient(145deg,#fff,#f2f7fc)!important;border-color:#42668f24!important}
+
