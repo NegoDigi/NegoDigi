@@ -15,8 +15,8 @@ export function HomeAccessGate() {
 
   React.useEffect(() => {
     let active = true;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (active) setState(data.user ? "signed-in" : "signed-out");
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) setState(data.session?.user ? "signed-in" : "signed-out");
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -56,3 +56,4 @@ export function HomeAccessGate() {
     </main>
   );
 }
+
