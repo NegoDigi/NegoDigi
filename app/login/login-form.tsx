@@ -47,37 +47,36 @@ export function LoginForm() {
   return (
     <form onSubmit={submit} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-xs text-slate-400">Email</Label>
+        <Label htmlFor="email" className="text-sm font-medium text-[#334155]">Email</Label>
         <div className="relative">
-          <Mail className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-600" />
-          <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="tu@email.com" className="h-12 rounded-xl border-white/[0.07] bg-white/[0.025] pl-10" />
+          <Mail className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
+          <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="tu@email.com" className="h-12 rounded-xl border-[#dbe5ef] bg-[#f8fafc] pl-10 text-[#142b4a] shadow-none placeholder:text-[#94a3b8] focus:border-[#1769e8] focus:ring-4 focus:ring-blue-100" />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password" className="text-xs text-slate-400">Contraseña</Label>
+        <Label htmlFor="password" className="text-sm font-medium text-[#334155]">Contraseña</Label>
         <div className="relative">
-          <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-600" />
-          <Input id="password" type={visible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} required placeholder="••••••••" className="h-12 rounded-xl border-white/[0.07] bg-white/[0.025] pr-11 pl-10" />
-          <button type="button" onClick={() => setVisible((value) => !value)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-slate-600 hover:text-white" aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}>
+          <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
+          <Input id="password" type={visible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} required placeholder="Ingresa tu contraseña" className="h-12 rounded-xl border-[#dbe5ef] bg-[#f8fafc] pr-11 pl-10 text-[#142b4a] shadow-none placeholder:text-[#94a3b8] focus:border-[#1769e8] focus:ring-4 focus:ring-blue-100" />
+          <button type="button" onClick={() => setVisible((value) => !value)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#94a3b8] transition hover:text-[#334155]" aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}>
             {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
         </div>
       </div>
-      {error && <p className="rounded-xl border border-amber-400/15 bg-amber-400/[0.06] p-3 text-xs leading-5 text-amber-200">{error}</p>}
+      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-700">{error}</p>}
       <div className="space-y-3 pt-1">
-        <Button type="submit" disabled={loading} className="h-12 w-full rounded-2xl bg-violet-500 text-white font-semibold shadow-[0_12px_30px_rgba(23,105,232,.28)] transition hover:bg-violet-400 hover:shadow-[0_14px_34px_rgba(23,105,232,.36)]">
+        <Button type="submit" disabled={loading} className="h-12 w-full rounded-xl bg-[#1769e8] text-white font-semibold shadow-[0_12px_28px_rgba(23,105,232,.24)] transition hover:bg-[#125bc9] hover:shadow-[0_14px_34px_rgba(23,105,232,.30)]">
           {loading ? "Accediendo…" : "Entrar en NegoDigi"}
           {!loading && <ArrowRight className="ml-2 size-4" />}
         </Button>
-        <Link href="/forgot-password" className="block rounded-xl py-1 text-center text-sm font-medium text-sky-300 transition hover:bg-sky-400/[.06] hover:text-sky-200">
+        <Link href="/forgot-password" className="block py-1 text-center text-sm font-medium text-[#1769e8] transition hover:text-[#125bc9]">
           ¿Olvidaste tu contraseña?
         </Link>
-        <Link href="/register" className="flex h-11 items-center justify-center rounded-2xl border border-white/[0.14] bg-white/[.02] text-sm font-medium text-slate-200 transition hover:border-sky-300/40 hover:bg-sky-400/[.06]">
+        <Link href="/register" className="flex h-11 items-center justify-center rounded-xl border border-[#dbe5ef] bg-white text-sm font-medium text-[#334155] transition hover:border-[#9cc5f7] hover:bg-[#f2f7ff]">
           Primer acceso · Crear contraseña
         </Link>
       </div>
-      {!isSupabaseConfigured() && <p className="text-center text-[11px] leading-5 text-slate-600">Vista de revisión: el formulario y los roles están preparados; falta autorizar Supabase.</p>}
+      {!isSupabaseConfigured() && <p className="text-center text-[11px] leading-5 text-[#94a3b8]">Vista de revisión: el formulario y los roles están preparados; falta autorizar Supabase.</p>}
     </form>
   );
 }
-
