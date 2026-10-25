@@ -12,6 +12,7 @@ const fieldClass =
 type PageState =
   | "checking"
   | "awaiting-confirmation"
+  | "enter-code"
   | "ready"
   | "invalid"
   | "done";
@@ -19,6 +20,8 @@ type PageState =
 export function ResetPasswordForm() {
   const supabase = React.useMemo(() => createSupabaseRecoveryBrowserClient(), []);
   const [state, setState] = React.useState<PageState>("checking");
+  const [email, setEmail] = React.useState("");
+  const [code, setCode] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirmation, setConfirmation] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -31,8 +34,6 @@ export function ResetPasswordForm() {
   React.useEffect(() => {
     let active = true;
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Keep token-hash links pending until the user explicitly continues.
-      // Email security scanners must not be able to consume the recovery token.
       if (active && session && !tokenHashRef.current) setState("ready");
     });
 
@@ -41,16 +42,14 @@ export function ResetPasswordForm() {
     const authCode = params.get("code");
     tokenHashRef.current = tokenHash;
     const resolveRecovery = async (): Promise<PageState> => {
-      if (tokenHash) {
-        return "awaiting-confirmation";
-      }
+      if (tokenHash) return "awaiting-confirmation";
       if (authCode) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
         return !error && data.session ? "ready" : "invalid";
       }
-      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
       const { data } = await supabase.auth.getSession();
-      return data.session ? "ready" : "invalid";
+      return data.session ? "ready" : "enter-code";
     };
     recoveryResolutionRef.current ||= resolveRecovery();
     void recoveryResolutionRef.current.then((nextState) => {
@@ -63,23 +62,62 @@ export function ResetPasswordForm() {
     };
   }, [supabase]);
 
+  function finishRecovery() {
+    tokenHashRef.current = null;
+    window.history.replaceState(null, "", "/reset-password");
+    setState("ready");
+    setWorking(false);
+  }
+
   async function continueRecovery() {
     const tokenHash = tokenHashRef.current;
     if (!tokenHash || working) return;
     setWorking(true);
     setMessage("");
+    const { data: existingSession } = await supabase.auth.getSession();
+    if (existingSession.session) {
+      finishRecovery();
+      return;
+    }
     const { data, error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type: "recovery",
     });
     if (error || !data.session) {
+      const { data: recoveredSession } = await supabase.auth.getSession();
+      if (recoveredSession.session) {
+        finishRecovery();
+        return;
+      }
       setState("invalid");
       setMessage("Este enlace ya no es válido. Solicita otro para cambiar tu contraseña.");
       setWorking(false);
       return;
     }
-    tokenHashRef.current = null;
-    window.history.replaceState(null, "", "/reset-password");
+    finishRecovery();
+  }
+
+  async function verifyCode(event: React.FormEvent) {
+    event.preventDefault();
+    if (working) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedCode = code.trim();
+    if (!normalizedEmail || !/^\d{6}$/.test(normalizedCode)) {
+      setMessage("Escribe el email y el código de 6 dígitos que aparecen en el mensaje.");
+      return;
+    }
+    setWorking(true);
+    setMessage("");
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: normalizedEmail,
+      token: normalizedCode,
+      type: "recovery",
+    });
+    if (error || !data.session) {
+      setMessage("El código no es válido o ya ha caducado. Solicita un código nuevo y usa el último que recibas.");
+      setWorking(false);
+      return;
+    }
     setState("ready");
     setWorking(false);
   }
@@ -95,7 +133,7 @@ export function ResetPasswordForm() {
     setWorking(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      setMessage("Este enlace ya no es válido. Solicita otro para cambiar tu contraseña.");
+      setMessage("Este enlace o código ya no es válido. Solicita uno nuevo para cambiar tu contraseña.");
       setWorking(false);
       return;
     }
@@ -120,25 +158,40 @@ export function ResetPasswordForm() {
         {state === "awaiting-confirmation" && (
           <div className="mt-5 space-y-4">
             <p className="text-sm leading-6 text-slate-300">Tu enlace está listo. Pulsa el botón para validarlo y elegir una nueva contraseña.</p>
-            <button type="button" onClick={() => void continueRecovery()} disabled={working} className="flex h-12 w-full items-center justify-center rounded-xl bg-violet-500 text-sm font-medium hover:bg-violet-400 disabled:opacity-60">
+            <button type="button" onClick={() => void continueRecovery()} disabled={working} className="flex h-12 w-full items-center justify-center rounded-xl bg-violet-500 text-sm font-medium text-white hover:bg-violet-400 disabled:opacity-60">
               {working ? "Validando enlace…" : "Continuar para cambiarla"}
             </button>
           </div>
         )}
+        {state === "enter-code" && (
+          <form onSubmit={verifyCode} className="mt-6 space-y-4">
+            <p className="text-sm leading-6 text-slate-300">Introduce el código de 6 dígitos que aparece en el email de NegoDigi. Este método evita que un escáner de correo invalide el enlace.</p>
+            <label className="block space-y-2 text-sm">
+              <span className="text-slate-300">Email</span>
+              <input autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} type="email" placeholder="tu@email.com" className={fieldClass} />
+            </label>
+            <label className="block space-y-2 text-sm">
+              <span className="text-slate-300">Código de recuperación</span>
+              <input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} required maxLength={6} type="text" placeholder="123456" className={`${fieldClass} text-center text-lg tracking-[.3em]`} />
+            </label>
+            <button disabled={working} className="h-12 w-full rounded-xl bg-violet-500 text-sm font-medium text-white hover:bg-violet-400 disabled:opacity-60">{working ? "Verificando…" : "Verificar código"}</button>
+          </form>
+        )}
         {state === "invalid" && (
           <div className="mt-5 space-y-4">
-            <p className="text-sm leading-6 text-slate-300">Este enlace ha caducado o ya se ha utilizado. Solicita uno nuevo para cambiar tu contraseña.</p>
-            <Link href="/forgot-password" className="flex h-12 items-center justify-center rounded-xl bg-violet-500 text-sm font-medium hover:bg-violet-400">Solicitar otro enlace</Link>
+            <p className="text-sm leading-6 text-slate-300">Este enlace ha caducado o ya se ha utilizado. Solicita uno nuevo y usa el último mensaje que recibas.</p>
+            <Link href="/forgot-password" className="flex h-12 items-center justify-center rounded-xl bg-violet-500 text-sm font-medium text-white hover:bg-violet-400">Solicitar otro enlace</Link>
           </div>
         )}
         {state === "done" && (
           <div className="mt-5 space-y-4">
             <p className="rounded-xl border border-emerald-400/20 bg-emerald-400/[.08] p-4 text-sm leading-6 text-emerald-200" role="status">Tu contraseña se ha cambiado correctamente. Ya puedes entrar con ella.</p>
-            <Link href="/" className="flex h-12 items-center justify-center rounded-xl bg-violet-500 text-sm font-medium hover:bg-violet-400">Entrar en NegoDigi</Link>
+            <Link href="/" className="flex h-12 items-center justify-center rounded-xl bg-violet-500 text-sm font-medium text-white hover:bg-violet-400">Entrar en NegoDigi</Link>
           </div>
         )}
         {state === "ready" && (
           <form onSubmit={submit} className="mt-7 space-y-4">
+            <p className="text-sm leading-6 text-slate-300">Elige una contraseña nueva para volver a entrar en NegoDigi.</p>
             <label className="block space-y-2 text-sm">
               <span className="text-slate-300">Nueva contraseña</span>
               <div className="relative">
@@ -155,7 +208,7 @@ export function ResetPasswordForm() {
                 <button type="button" onClick={() => setShowConfirmation((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-slate-600 hover:text-white" aria-label={showConfirmation ? "Ocultar contraseña" : "Mostrar contraseña"}>{showConfirmation ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
               </div>
             </label>
-            <button disabled={working} className="h-12 w-full rounded-xl bg-violet-500 text-sm font-medium hover:bg-violet-400 disabled:opacity-60">{working ? "Cambiando…" : "Cambiar contraseña"}</button>
+            <button disabled={working} className="h-12 w-full rounded-xl bg-violet-500 text-sm font-medium text-white hover:bg-violet-400 disabled:opacity-60">{working ? "Cambiando…" : "Cambiar contraseña"}</button>
           </form>
         )}
         {message && <p role="alert" className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/[.08] p-3 text-sm leading-5 text-amber-200">{message}</p>}
