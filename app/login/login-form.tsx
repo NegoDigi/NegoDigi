@@ -64,7 +64,7 @@ export function LoginForm() {
         </div>
       </div>
       {error && <p className="rounded-xl border border-amber-400/15 bg-amber-400/[0.06] p-3 text-xs leading-5 text-amber-200">{error}</p>}
-      <Button type="submit" disabled={loading} className="h-12 w-full rounded-xl bg-violet-500 font-medium hover:bg-violet-400">
+      <Button type="submit" disabled={loading} className="h-12 w-full rounded-xl bg-violet-500 text-white font-medium shadow-[0_12px_30px_rgba(23,105,232,.22)] hover:bg-violet-400">
         {loading ? "Accediendo…" : "Entrar en NegoDigi"}
         {!loading && <ArrowRight className="ml-2 size-4" />}
       </Button>
@@ -78,3 +78,4 @@ export function LoginForm() {
     </form>
   );
 }
+
