@@ -9,6 +9,8 @@ import { OperatingSystem } from "./operating-system";
 
 type GateState = "loading" | "signed-in" | "signed-out";
 
+const logoUrl = "https://pub-faa10ba6d70742bb8e0160e5bfc808f0.r2.dev/LOGO%20NEGODIGI.png";
+
 export function HomeAccessGate() {
   const supabase = React.useMemo(() => createSupabaseBrowserClient(), []);
   const [state, setState] = React.useState<GateState>("loading");
@@ -31,8 +33,11 @@ export function HomeAccessGate() {
 
   if (state === "loading") {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#080b11] p-5 text-white">
-        <p className="text-sm text-slate-400">Comprobando acceso…</p>
+      <main className="auth-shell grid min-h-screen place-items-center bg-[#f5f7fb] p-5 text-[#142b4a]">
+        <div className="flex flex-col items-center gap-4">
+          <img src={logoUrl} alt="NegoDigi" className="h-12 w-auto object-contain" />
+          <p className="text-sm text-[#64748b]">Comprobando acceso…</p>
+        </div>
       </main>
     );
   }
@@ -40,20 +45,23 @@ export function HomeAccessGate() {
   if (state === "signed-in") return <OperatingSystem />;
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#080b11] p-5 text-white">
-      <section className="w-full max-w-md rounded-3xl border border-white/[.08] bg-[#111722] p-7 shadow-2xl shadow-black/30">
-        <span className="grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-violet-700 text-sm font-bold">N</span>
-        <p className="mt-5 text-[11px] uppercase tracking-[.2em] text-violet-300">NegoDigi APP</p>
-        <h1 className="mt-2 text-2xl font-semibold">Acceso privado</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-400">
-          Entra con tu email y contraseña. Si es tu primera vez, crea tu acceso
-          con el email que Dirección ya tiene registrado en NegoDigi.
-        </p>
-        <div className="mt-7">
-          <LoginForm />
-        </div>
-      </section>
+    <main className="auth-shell min-h-screen bg-[#f5f7fb] px-5 py-10 text-[#142b4a]">
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md items-center justify-center">
+        <section className="auth-card w-full rounded-[28px] border border-[#e2e8f0] bg-white px-7 py-9 shadow-[0_24px_70px_rgba(15,23,42,.10)] sm:px-9">
+          <div className="flex flex-col items-center text-center">
+            <img src={logoUrl} alt="NegoDigi" className="h-16 w-auto max-w-[220px] object-contain" />
+            <p className="mt-5 text-[11px] font-semibold uppercase tracking-[.22em] text-[#1769e8]">NegoDigi APP</p>
+            <h1 className="mt-3 text-[28px] font-semibold tracking-[-.03em] text-[#102a4a]">Acceso privado</h1>
+            <p className="mt-3 max-w-sm text-sm leading-6 text-[#64748b]">
+              Entra con tu email y contraseña. Si es tu primera vez, crea tu acceso con el email que Dirección ya tiene registrado en NegoDigi.
+            </p>
+          </div>
+          <div className="mt-8">
+            <LoginForm />
+          </div>
+          <p className="mt-7 text-center text-xs text-[#94a3b8]">Acceso privado para dirección, editores y clientes</p>
+        </section>
+      </div>
     </main>
   );
 }
-
