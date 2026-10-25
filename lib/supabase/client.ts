@@ -50,11 +50,12 @@ export function createSupabaseRecoveryBrowserClient() {
     {
       global: { fetch: supabaseFetch },
       auth: {
-        // The recovery page must consume the one-time session from the email
-        // link before allowing auth.updateUser({ password }).
-        detectSessionInUrl: true,
+        // The recovery page exchanges the PKCE code explicitly. Leaving URL
+        // detection enabled here can consume the one-time code twice.
+        detectSessionInUrl: false,
         persistSession: true,
       },
     },
   );
 }
+
