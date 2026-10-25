@@ -1,5 +1,5 @@
-import { OperatingSystem } from "./operating-system";
+import { HomeAccessGate } from "./home-access-gate";
 
 export default function Home() {
-  return <OperatingSystem />;
+  return <HomeAccessGate />;
 }
