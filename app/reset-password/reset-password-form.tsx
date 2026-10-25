@@ -137,7 +137,9 @@ export function ResetPasswordForm() {
       setMessage(
         error.code === "same_password" || detail.includes("different from the old password")
           ? "La nueva contraseña debe ser diferente a la anterior. Escribe otra y vuelve a intentarlo."
-          : "No se pudo guardar la contraseña. El enlace ya fue validado; prueba con otra contraseña.",
+          : error.code === "weak_password" || (detail.includes("password") && detail.includes("character"))
+            ? "La contraseña no cumple las reglas de seguridad de la cuenta. Prueba con al menos 6 caracteres y mezcla letras, números o símbolos."
+            : "No se pudo guardar la contraseña. El enlace ya fue validado; prueba con otra contraseña.",
       );
       setWorking(false);
       return;
@@ -201,7 +203,7 @@ export function ResetPasswordForm() {
               <span className="text-slate-300">Nueva contraseña</span>
               <div className="relative">
                 <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-600" />
-                <input autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={10} maxLength={72} type={showPassword ? "text" : "password"} placeholder="Ingresa una contraseña" className={`${fieldClass} pr-11 pl-10`} />
+                <input autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required maxLength={72} type={showPassword ? "text" : "password"} placeholder="Ingresa una contraseña" className={`${fieldClass} pr-11 pl-10`} />
                 <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-slate-600 hover:text-white" aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
               </div>
             </label>
@@ -209,7 +211,7 @@ export function ResetPasswordForm() {
               <span className="text-slate-300">Repite la contraseña</span>
               <div className="relative">
                 <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-600" />
-                <input autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required minLength={10} maxLength={72} type={showConfirmation ? "text" : "password"} placeholder="Repite tu contraseña" className={`${fieldClass} pr-11 pl-10`} />
+                <input autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required maxLength={72} type={showConfirmation ? "text" : "password"} placeholder="Repite tu contraseña" className={`${fieldClass} pr-11 pl-10`} />
                 <button type="button" onClick={() => setShowConfirmation((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-slate-600 hover:text-white" aria-label={showConfirmation ? "Ocultar contraseña" : "Mostrar contraseña"}>{showConfirmation ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
               </div>
             </label>
@@ -221,4 +223,6 @@ export function ResetPasswordForm() {
     </main>
   );
 }
+
+
 
