@@ -26,7 +26,7 @@ export function ResetPasswordForm() {
   const [working, setWorking] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const tokenHashRef = React.useRef<string | null>(null);
-  const recoveryResolutionRef = React.useRef<Promise<void> | null>(null);
+  const recoveryResolutionRef = React.useRef<Promise<PageState> | null>(null);
 
   React.useEffect(() => {
     let active = true;
@@ -40,32 +40,22 @@ export function ResetPasswordForm() {
     const tokenHash = params.get("token_hash");
     const authCode = params.get("code");
     tokenHashRef.current = tokenHash;
-    const resolveRecovery = async () => {
+    const resolveRecovery = async (): Promise<PageState> => {
       if (tokenHash) {
-        if (active) setState("awaiting-confirmation");
-        return;
+        return "awaiting-confirmation";
       }
       if (authCode) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
-        if (active) setState(!error && data.session ? "ready" : "invalid");
-        return;
+        return !error && data.session ? "ready" : "invalid";
       }
-      if (tokenHash) {
-        const { data, error } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: "recovery",
-        });
-        if (active) setState(!error && data.session ? "ready" : "invalid");
-        return;
-      }
-      window.setTimeout(() => {
-        void supabase.auth.getSession().then(({ data }) => {
-          if (active) setState(data.session ? "ready" : "invalid");
-        });
-      }, 700);
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      const { data } = await supabase.auth.getSession();
+      return data.session ? "ready" : "invalid";
     };
     recoveryResolutionRef.current ||= resolveRecovery();
-    void recoveryResolutionRef.current;
+    void recoveryResolutionRef.current.then((nextState) => {
+      if (active) setState(nextState);
+    });
 
     return () => {
       active = false;
