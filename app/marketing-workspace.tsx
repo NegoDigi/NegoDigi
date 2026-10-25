@@ -700,7 +700,7 @@ export function MarketingWorkspace({
         <Workspace
           section={section}
           crmTab={crmTab}
-          setCrmTab={setCrmTab}
+          setCrmTab={changeCrmTab}
           data={data}
           pipelineValue={pipelineValue}
           wonValue={wonValue}
@@ -877,7 +877,7 @@ function Workspace({
     <SalesCrm
       data={data}
       tab={crmTab}
-      setTab={changeCrmTab}
+      setTab={setCrmTab}
       search={search}
       setSearch={setSearch}
       stage={stage}
