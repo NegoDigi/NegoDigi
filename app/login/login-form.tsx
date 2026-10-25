@@ -64,16 +64,18 @@ export function LoginForm() {
         </div>
       </div>
       {error && <p className="rounded-xl border border-amber-400/15 bg-amber-400/[0.06] p-3 text-xs leading-5 text-amber-200">{error}</p>}
-      <Button type="submit" disabled={loading} className="h-12 w-full rounded-xl bg-violet-500 text-white font-medium shadow-[0_12px_30px_rgba(23,105,232,.22)] hover:bg-violet-400">
-        {loading ? "Accediendo…" : "Entrar en NegoDigi"}
-        {!loading && <ArrowRight className="ml-2 size-4" />}
-      </Button>
-      <Link href="/forgot-password" className="block text-center text-sm text-violet-300 transition hover:text-violet-200">
-        ¿Olvidaste tu contraseña?
-      </Link>
-      <Link href="/register" className="flex h-11 items-center justify-center rounded-xl border border-white/[0.1] text-sm text-slate-300 transition hover:bg-white/[0.04]">
-        Primer acceso · Crear contraseña
-      </Link>
+      <div className="space-y-3 pt-1">
+        <Button type="submit" disabled={loading} className="h-12 w-full rounded-2xl bg-violet-500 text-white font-semibold shadow-[0_12px_30px_rgba(23,105,232,.28)] transition hover:bg-violet-400 hover:shadow-[0_14px_34px_rgba(23,105,232,.36)]">
+          {loading ? "Accediendo…" : "Entrar en NegoDigi"}
+          {!loading && <ArrowRight className="ml-2 size-4" />}
+        </Button>
+        <Link href="/forgot-password" className="block rounded-xl py-1 text-center text-sm font-medium text-sky-300 transition hover:bg-sky-400/[.06] hover:text-sky-200">
+          ¿Olvidaste tu contraseña?
+        </Link>
+        <Link href="/register" className="flex h-11 items-center justify-center rounded-2xl border border-white/[0.14] bg-white/[.02] text-sm font-medium text-slate-200 transition hover:border-sky-300/40 hover:bg-sky-400/[.06]">
+          Primer acceso · Crear contraseña
+        </Link>
+      </div>
       {!isSupabaseConfigured() && <p className="text-center text-[11px] leading-5 text-slate-600">Vista de revisión: el formulario y los roles están preparados; falta autorizar Supabase.</p>}
     </form>
   );
