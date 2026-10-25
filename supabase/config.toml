@@ -1,0 +1,24 @@
+[functions.admin-users]
+verify_jwt = true
+
+[functions.accept-invite]
+verify_jwt = false
+
+[functions.complete-access]
+verify_jwt = true
+
+[functions.request-access]
+verify_jwt = false
+
+[functions.access-health]
+verify_jwt = true
+
+[functions.account-setup]
+verify_jwt = false
+
+[functions.contract-storage-upload]
+verify_jwt = true
+
+[functions.self-access]
+verify_jwt = true
+
