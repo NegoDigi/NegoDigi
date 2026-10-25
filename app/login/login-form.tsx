@@ -63,15 +63,15 @@ export function LoginForm() {
           </button>
         </div>
       </div>
+      <Link href="/forgot-password" className="-mt-1 block text-left text-xs font-medium text-[#1769e8] transition hover:text-[#125bc9]">
+        ¿Olvidaste tu contraseña?
+      </Link>
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-700">{error}</p>}
       <div className="space-y-3 pt-1">
         <Button type="submit" disabled={loading} className="h-12 w-full rounded-xl bg-[#1769e8] text-white font-semibold shadow-[0_12px_28px_rgba(23,105,232,.24)] transition hover:bg-[#125bc9] hover:shadow-[0_14px_34px_rgba(23,105,232,.30)]">
           {loading ? "Accediendo…" : "Entrar en NegoDigi"}
           {!loading && <ArrowRight className="ml-2 size-4" />}
         </Button>
-        <Link href="/forgot-password" className="block py-1 text-center text-sm font-medium text-[#1769e8] transition hover:text-[#125bc9]">
-          ¿Olvidaste tu contraseña?
-        </Link>
         <Link href="/register" className="flex h-11 items-center justify-center rounded-xl border border-[#dbe5ef] bg-white text-sm font-medium text-[#334155] transition hover:border-[#9cc5f7] hover:bg-[#f2f7ff]">
           Primer acceso · Crear contraseña
         </Link>
@@ -80,3 +80,4 @@ export function LoginForm() {
     </form>
   );
 }
+
