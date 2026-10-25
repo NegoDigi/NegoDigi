@@ -68,6 +68,9 @@ export function LoginForm() {
         {loading ? "Accediendo…" : "Entrar en NegoDigi"}
         {!loading && <ArrowRight className="ml-2 size-4" />}
       </Button>
+      <Link href="/forgot-password" className="block text-center text-sm text-violet-300 transition hover:text-violet-200">
+        ¿Olvidaste tu contraseña?
+      </Link>
       <Link href="/register" className="flex h-11 items-center justify-center rounded-xl border border-white/[0.1] text-sm text-slate-300 transition hover:bg-white/[0.04]">
         Primer acceso · Crear contraseña
       </Link>
@@ -75,4 +78,3 @@ export function LoginForm() {
     </form>
   );
 }
-
