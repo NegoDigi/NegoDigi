@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,7 +68,11 @@ export function LoginForm() {
         {loading ? "Accediendo…" : "Entrar en NegoDigi"}
         {!loading && <ArrowRight className="ml-2 size-4" />}
       </Button>
+      <Link href="/register" className="flex h-11 items-center justify-center rounded-xl border border-white/[0.1] text-sm text-slate-300 transition hover:bg-white/[0.04]">
+        Primer acceso · Crear contraseña
+      </Link>
       {!isSupabaseConfigured() && <p className="text-center text-[11px] leading-5 text-slate-600">Vista de revisión: el formulario y los roles están preparados; falta autorizar Supabase.</p>}
     </form>
   );
 }
+
