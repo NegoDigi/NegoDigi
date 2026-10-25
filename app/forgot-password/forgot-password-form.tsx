@@ -63,7 +63,7 @@ export function ForgotPasswordForm() {
               </div>
             </label>
             <button disabled={working} className="h-12 w-full rounded-xl bg-violet-500 text-sm font-medium text-white shadow-[0_12px_30px_rgba(23,105,232,.22)] hover:bg-violet-400 disabled:opacity-60" aria-busy={working}>
-              {working ? "Enviando…" : "Enviar enlace seguro"}
+              {working ? "Enviando…" : "Enviar código seguro"}
             </button>
           </form>
         ) : (
