@@ -21,6 +21,9 @@ export function ForgotPasswordForm() {
     if (working) return;
     setWorking(true);
     setMessage("");
+    const slowNotice = window.setTimeout(() => {
+      setMessage("El proveedor de correo está tardando más de lo normal. No cierres esta página; el mensaje puede llegar igualmente en unos instantes.");
+    }, 7_000);
     try {
       const redirectTo = `${window.location.origin}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(
@@ -32,6 +35,7 @@ export function ForgotPasswordForm() {
     } catch {
       setMessage("No se pudo enviar el email ahora. Inténtalo de nuevo en unos minutos.");
     } finally {
+      window.clearTimeout(slowNotice);
       setWorking(false);
     }
   }
@@ -58,7 +62,7 @@ export function ForgotPasswordForm() {
                 <input autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} type="email" placeholder="tu@email.com" className={`${fieldClass} pl-10`} />
               </div>
             </label>
-            <button disabled={working} className="h-12 w-full rounded-xl bg-violet-500 text-sm font-medium hover:bg-violet-400 disabled:opacity-60">
+            <button disabled={working} className="h-12 w-full rounded-xl bg-violet-500 text-sm font-medium text-white shadow-[0_12px_30px_rgba(23,105,232,.22)] hover:bg-violet-400 disabled:opacity-60" aria-busy={working}>
               {working ? "Enviando…" : "Enviar enlace seguro"}
             </button>
           </form>
@@ -73,3 +77,4 @@ export function ForgotPasswordForm() {
     </main>
   );
 }
+
