@@ -1108,11 +1108,11 @@ body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; 
 .auth-background .auth-bubble {
   position: absolute;
   z-index: 0;
-  border: 1px solid rgba(37, 126, 231, .12);
+  border: 0;
   border-radius: 999px;
-  background: rgba(83, 169, 255, .08);
-  box-shadow: 0 18px 45px rgba(37, 126, 231, .09), inset 0 0 22px rgba(255, 255, 255, .3);
-  filter: blur(.2px);
+  background: rgba(83, 169, 255, .035);
+  box-shadow: 0 18px 70px rgba(37, 126, 231, .055), inset 0 0 35px rgba(255, 255, 255, .3);
+  filter: blur(12px);
   pointer-events: none;
   animation: auth-bubble-drift 15s ease-in-out infinite;
 }
@@ -1120,8 +1120,8 @@ body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; 
 .auth-background .auth-bubble--two { width: 9rem; height: 9rem; right: 8%; top: 13%; animation-delay: -5s; animation-duration: 19s; }
 .auth-background .auth-bubble--three { width: 20rem; height: 20rem; right: -8rem; bottom: -7rem; animation-delay: -9s; animation-duration: 22s; }
 @keyframes auth-bubble-drift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .58; }
-  50% { transform: translate3d(18px, -16px, 0) scale(1.045); opacity: .9; }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .3; }
+  50% { transform: translate3d(18px, -16px, 0) scale(1.045); opacity: .55; }
 }
 
 @media (max-width: 767px) {
