@@ -9,7 +9,7 @@ import { createSupabaseRecoveryBrowserClient } from "@/lib/supabase/client";
 const fieldClass =
   "h-12 w-full rounded-xl border border-[#dbe5ef] bg-[#f8fafc] px-4 text-sm text-[#142b4a] outline-none placeholder:text-[#94a3b8] focus:border-[#1769e8] focus:ring-4 focus:ring-blue-100";
 
-const logoUrl = "https://pub-faa10ba6d70742bb8e0160e5bfc808f0.r2.dev/LOGO%20NEGODIGI.png";
+const logoUrl = "/negodigi-logo.png";
 
 type PageState =
   | "checking"

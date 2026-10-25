@@ -85,7 +85,11 @@ import {
   createWorkspaceQueryCache,
 } from "@/lib/workspace-refresh";
 import { AdminSetupRequests } from "@/components/admin-setup-requests";
-import { MarketingWorkspace } from "./marketing-workspace";
+const MarketingWorkspace = React.lazy(() =>
+  import("./marketing-workspace").then((module) => ({
+    default: module.MarketingWorkspace,
+  })),
+);
 // Recharts v3 exposes formatter values as a broad union (and sometimes undefined).
 // These wrappers preserve the runtime primitives while keeping the legacy chart
 // callbacks compatible with the upgraded library types.
@@ -2120,7 +2124,7 @@ function Login({ onReady }: { onReady: () => Promise<void> }) {
       <Panel className="w-full max-w-md p-7 shadow-2xl shadow-black/30">
         <span className="grid size-12 place-items-center overflow-hidden rounded-2xl border border-sky-300/25 bg-[#071426] shadow-[0_12px_30px_rgba(22,112,255,.24)]">
           <img
-            src="https://pub-faa10ba6d70742bb8e0160e5bfc808f0.r2.dev/LOGO%20NEGODIGI.png"
+            src="/negodigi-logo.png"
             alt="NegoDigi"
             className="size-full object-cover"
           />
@@ -2383,6 +2387,7 @@ export function OperatingSystem() {
   const [classicMode, setClassicMode] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [navigationRevision, setNavigationRevision] = React.useState(0);
+  const foregroundRefreshAt = React.useRef(0);
   const [previewRole, setPreviewRole] = React.useState<AdminPreviewRole>(null);
   const [editorPreviewId, setEditorPreviewId] = React.useState("");
   const [clientPreviewId, setClientPreviewId] = React.useState("");
@@ -3985,7 +3990,11 @@ export function OperatingSystem() {
   React.useEffect(() => {
     if (!profile) return;
     const refreshVisibleProduction = () => {
-      if (document.visibilityState === "visible") void refresh("production");
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - foregroundRefreshAt.current < 30_000) return;
+      foregroundRefreshAt.current = now;
+      void refresh("production");
     };
     window.addEventListener("focus", refreshVisibleProduction);
     document.addEventListener("visibilitychange", refreshVisibleProduction);
@@ -7945,12 +7954,20 @@ export function OperatingSystem() {
       displayedRole === "Dirección"
     )
       return (
-        <MarketingWorkspace
-          key={view}
-          organizationId={profile?.organization_id || ""}
-          canEdit={admin && !isPreviewing}
-          initialSection={view === "crm" ? "crm" : "home"}
-        />
+        <React.Suspense
+          fallback={
+            <div className="grid min-h-[320px] place-items-center rounded-3xl border border-white/[.07] bg-[#101722] text-sm text-slate-400">
+              Preparando Marketing…
+            </div>
+          }
+        >
+          <MarketingWorkspace
+            key={view}
+            organizationId={profile?.organization_id || ""}
+            canEdit={admin && !isPreviewing}
+            initialSection={view === "crm" ? "crm" : "home"}
+          />
+        </React.Suspense>
       );
     if (view === "conocimiento") {
       const canOpenEditorManual =
@@ -7980,7 +7997,7 @@ export function OperatingSystem() {
         <div className="flex h-16 items-center gap-3 px-3">
           <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-[#0b1018] shadow-[0_10px_30px_rgba(0,0,0,.26)]">
             <img
-              src="https://pub-faa10ba6d70742bb8e0160e5bfc808f0.r2.dev/LOGO%20NEGODIGI.png"
+              src="/negodigi-logo.png"
               alt="NegoDigi"
               className="size-full object-cover"
             />
@@ -10586,8 +10603,12 @@ function EditorNewsWorkspace({
   const [claimedMessage, setClaimedMessage] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const monthKey = madridMonthKey();
-  const podium = [2, 1, 3].map((place) =>
-    teamRanking.find((entry) => entry.rank === place),
+  const podium = React.useMemo(
+    () =>
+      [2, 1, 3].map((place) =>
+        teamRanking.find((entry) => entry.rank === place),
+      ),
+    [teamRanking],
   );
   const recentRecognition = weeklyRecognitions[0];
   const recognitionEditor =
@@ -10596,9 +10617,13 @@ function EditorNewsWorkspace({
       (entry) => entry.row.editor_id === recentRecognition?.editor_id,
     )?.row.editor_name ||
     "";
-  const ownLatestPoint = [...dailyRankingPoints]
-    .filter((point) => point.editor_id === editor?.id)
-    .sort((a, b) => b.claimed_at.localeCompare(a.claimed_at))[0];
+  const ownLatestPoint = React.useMemo(
+    () =>
+      [...dailyRankingPoints]
+        .filter((point) => point.editor_id === editor?.id)
+        .sort((a, b) => b.claimed_at.localeCompare(a.claimed_at))[0],
+    [dailyRankingPoints, editor?.id],
+  );
   const remainingMs = Math.max(
     0,
     (ownLatestPoint
@@ -10609,14 +10634,25 @@ function EditorNewsWorkspace({
   const countdown = remainingMs
     ? `${String(Math.floor(remainingMs / 3_600_000)).padStart(2, "0")}:${String(Math.floor((remainingMs % 3_600_000) / 60_000)).padStart(2, "0")}:${String(Math.floor((remainingMs % 60_000) / 1000)).padStart(2, "0")}`
     : "Disponible";
-  const publishedAnnouncements = announcements.filter(
-    (item) =>
-      item.status === "published" &&
-      (item.audience === "all" || item.audience === "editors"),
+  const publishedAnnouncements = React.useMemo(
+    () =>
+      announcements.filter(
+        (item) =>
+          item.status === "published" &&
+          (item.audience === "all" || item.audience === "editors"),
+      ),
+    [announcements],
   );
   React.useEffect(() => {
-    const timer = window.setInterval(() => setReferenceNow(Date.now()), 1_000);
-    return () => window.clearInterval(timer);
+    const updateClock = () => {
+      if (document.visibilityState === "visible") setReferenceNow(Date.now());
+    };
+    const timer = window.setInterval(updateClock, 1_000);
+    document.addEventListener("visibilitychange", updateClock);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", updateClock);
+    };
   }, []);
   return (
     <section className="space-y-6">
@@ -17578,9 +17614,9 @@ function VisualTeamPodium({
 }) {
   const places = [2, 1, 3];
   const colors = [
-    "border-slate-300/15 bg-slate-300/[.04]",
-    "border-amber-300/45 bg-gradient-to-b from-amber-300/[.15] to-amber-300/[.03]",
-    "border-orange-300/25 bg-orange-300/[.05]",
+    "podium-card--silver border-slate-300/20",
+    "podium-card--gold border-amber-300/45",
+    "podium-card--bronze border-orange-300/30",
   ];
   const defaultPrize = (place: number) =>
     place === 1 ? "Bono extra" : place === 2 ? "Giro especial" : "Giro ruleta";
@@ -17601,7 +17637,7 @@ function VisualTeamPodium({
           return (
             <div
               key={entry?.row.editor_id || `podium-${places[index]}`}
-              className={`podium-card relative isolate flex flex-col items-center justify-end overflow-visible rounded-t-3xl border px-4 pb-4 pt-8 text-center ${colors[index]} ${index === 1 ? (large ? "min-h-64 shadow-[0_-14px_40px_rgba(251,191,36,.16)]" : "min-h-56 shadow-[0_-14px_40px_rgba(251,191,36,.16)]") : large ? "min-h-48" : "min-h-40"}`}
+              className={`podium-card relative isolate flex flex-col items-center justify-end overflow-visible rounded-t-3xl border px-4 pb-4 pt-8 text-center ${colors[index]} ${index === 1 ? (large ? "min-h-64" : "min-h-56") : large ? "min-h-48" : "min-h-40"}`}
             >
               <span
                 className={`absolute z-10 -top-10 max-w-[calc(100%-1rem)] truncate rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${index === 1 ? "border-amber-300/45 bg-amber-300/15 text-amber-100" : index === 0 ? "border-slate-200/20 bg-slate-200/[.08] text-slate-100" : "border-orange-300/30 bg-orange-300/[.09] text-orange-100"}`}

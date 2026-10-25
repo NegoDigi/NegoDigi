@@ -54,6 +54,10 @@ test("keeps the universe presentation and the complete handbook resources", asyn
     path.join(root, "app", "operating-system.tsx"),
     "utf8",
   );
+  const accessGate = await readFile(
+    path.join(root, "app", "home-access-gate.tsx"),
+    "utf8",
+  );
   const tutorialDir = path.join(root, "public", "tutorial");
   const tutorialFiles = await readdir(tutorialDir);
 
@@ -64,10 +68,18 @@ test("keeps the universe presentation and the complete handbook resources", asyn
   assert.match(source, /Podio actual del equipo/);
   assert.doesNotMatch(source, /negodigi-podium-sweep/);
   assert.doesNotMatch(source, /negodigi-podium-aura/);
+  assert.match(source, /podium-card--silver/);
+  assert.match(source, /podium-card--gold/);
+  assert.match(source, /podium-card--bronze/);
+  assert.match(css, /\.podium-card--gold/);
   assert.match(source, /aria-label="Vistas del editor del mes"/);
   assert.match(source, />\s*Ranking\s*<\/button>/);
   assert.match(source, />\s*Analítica\s*<\/button>/);
   assert.match(source, /<MarketingWorkspace\s+key=\{view\}/);
+  assert.doesNotMatch(source, /import \{ MarketingWorkspace \} from/);
+  assert.match(source, /React\.lazy\(\(\) =>\s*import\("\.\/marketing-workspace"\)/);
+  assert.match(accessGate, /React\.lazy\(\(\) =>\s*import\("\.\/operating-system"\)/);
+  assert.match(accessGate, /const logoUrl = "\/negodigi-logo\.png"/);
   assert.match(source, /function RestoredHandbookView/);
   assert.match(source, /pages\(manualPages, "Manual completo"\)/);
   assert.match(source, /Documentación legal/);

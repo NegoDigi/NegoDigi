@@ -4,12 +4,26 @@ import * as React from "react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-import { LoginForm } from "./login/login-form";
-import { OperatingSystem } from "./operating-system";
-
 type GateState = "loading" | "signed-in" | "signed-out";
 
-const logoUrl = "https://pub-faa10ba6d70742bb8e0160e5bfc808f0.r2.dev/LOGO%20NEGODIGI.png";
+const logoUrl = "/negodigi-logo.png";
+const LoginForm = React.lazy(() =>
+  import("./login/login-form").then((module) => ({ default: module.LoginForm })),
+);
+const OperatingSystem = React.lazy(() =>
+  import("./operating-system").then((module) => ({ default: module.OperatingSystem })),
+);
+
+function AccessLoader({ message }: { message: string }) {
+  return (
+    <main className="auth-shell grid min-h-screen place-items-center bg-[#f5f7fb] p-5 text-[#142b4a]">
+      <div className="flex flex-col items-center gap-4">
+        <img src={logoUrl} alt="NegoDigi" className="h-12 w-auto object-contain" />
+        <p className="text-sm text-[#64748b]">{message}</p>
+      </div>
+    </main>
+  );
+}
 
 export function HomeAccessGate() {
   const supabase = React.useMemo(() => createSupabaseBrowserClient(), []);
@@ -32,17 +46,16 @@ export function HomeAccessGate() {
   }, [supabase]);
 
   if (state === "loading") {
-    return (
-      <main className="auth-shell grid min-h-screen place-items-center bg-[#f5f7fb] p-5 text-[#142b4a]">
-        <div className="flex flex-col items-center gap-4">
-          <img src={logoUrl} alt="NegoDigi" className="h-12 w-auto object-contain" />
-          <p className="text-sm text-[#64748b]">Comprobando acceso…</p>
-        </div>
-      </main>
-    );
+    return <AccessLoader message="Comprobando acceso…" />;
   }
 
-  if (state === "signed-in") return <OperatingSystem />;
+  if (state === "signed-in") {
+    return (
+      <React.Suspense fallback={<AccessLoader message="Abriendo NegoDigi…" />}>
+        <OperatingSystem />
+      </React.Suspense>
+    );
+  }
 
   return (
     <main className="auth-shell min-h-screen bg-[#f5f7fb] px-5 py-10 text-[#142b4a]">
@@ -57,7 +70,9 @@ export function HomeAccessGate() {
             </p>
           </div>
           <div className="mt-8">
-            <LoginForm />
+            <React.Suspense fallback={<p className="py-8 text-center text-sm text-[#64748b]">Preparando acceso…</p>}>
+              <LoginForm />
+            </React.Suspense>
           </div>
           <p className="mt-7 text-center text-xs text-[#94a3b8]">Acceso privado para dirección, editores y clientes</p>
         </section>

@@ -1540,6 +1540,12 @@ html[data-theme=light] .universe-core-open{color:#126ca2;background:#43b3ff1a;bo
 .panel-surface:not(.financial-chart-panel):before,.panel-surface:not(.financial-chart-panel):hover:before{content:none!important;opacity:0!important}
 .podium-card:before,.podium-card:after{content:none!important;display:none!important}
 .negodigi-podium-sweep,.negodigi-podium-aura{display:none!important;animation:none!important}
+.podium-card--silver{background:radial-gradient(ellipse at 50% 0%,#cbd5e126 0%,#94a3b814 38%,#94a3b805 72%),linear-gradient(180deg,#26303e 0%,#151b24 100%);box-shadow:0 -22px 72px #cbd5e12b,-24px 0 62px #38bdf817,0 18px 42px #00000038}
+.podium-card--gold{background:radial-gradient(ellipse at 50% 0%,#fcd34d42 0%,#fbbf2424 42%,#fbbf2408 76%),linear-gradient(180deg,#4c431b 0%,#24200f 100%);box-shadow:0 -30px 92px #fbbf245c,0 0 62px #f59e0b2e,0 20px 46px #0000003d}
+.podium-card--bronze{background:radial-gradient(ellipse at 50% 0%,#fb923c29 0%,#f9731616 40%,#f9731605 74%),linear-gradient(180deg,#39271e 0%,#211713 100%);box-shadow:0 -22px 72px #fb923c36,24px 0 62px #f973161c,0 18px 42px #00000038}
+html[data-theme=light] .podium-card--silver{background:radial-gradient(ellipse at 50% 0%,#ffffff 0%,#e7edf5 48%,#dce5ef 100%);box-shadow:0 -20px 64px #64748b26,-18px 0 48px #38bdf814}
+html[data-theme=light] .podium-card--gold{background:radial-gradient(ellipse at 50% 0%,#fff7d5 0%,#f8e8a7 50%,#ead788 100%);box-shadow:0 -26px 78px #eab30842,0 0 48px #f59e0b20}
+html[data-theme=light] .podium-card--bronze{background:radial-gradient(ellipse at 50% 0%,#fff1e7 0%,#efd7c6 52%,#dfbea9 100%);box-shadow:0 -20px 64px #ea580c2e,18px 0 48px #f9731617}
 .panel-surface:hover{box-shadow:0 16px 36px var(--foreground)!important;border-color:#0000!important;transform:none!important}
 @supports (color:color-mix(in lab, red, red)){.panel-surface:hover{box-shadow:0 16px 36px color-mix(in srgb, var(--foreground) 6%, transparent)!important}
 }

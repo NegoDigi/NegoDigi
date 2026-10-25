@@ -7,7 +7,7 @@ import {
   createSupabaseEphemeralBrowserClient,
 } from "@/lib/supabase/client";
 
-const logoUrl = "https://pub-faa10ba6d70742bb8e0160e5bfc808f0.r2.dev/LOGO%20NEGODIGI.png";
+const logoUrl = "/negodigi-logo.png";
 
 type ActivationState =
   | { kind: "loading" }

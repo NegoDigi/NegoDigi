@@ -5,9 +5,6 @@ export const metadata: Metadata = {
   title: "NegoDigi APP",
   description:
     "Aplicación de NegoDigi para producción, clientes, equipo y finanzas.",
-  other: {
-    "codex-preview": "development",
-  },
   icons: {
     icon: "/negodigi-logo.png",
     shortcut: "/negodigi-logo.png",
@@ -22,6 +19,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" data-theme="dark">
+      <head>
+        <link rel="preconnect" href="https://zttclifwjyedxapgpwfb.supabase.co" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://zttclifwjyedxapgpwfb.supabase.co" />
+      </head>
       <body className="antialiased">{children}</body>
     </html>
   );
