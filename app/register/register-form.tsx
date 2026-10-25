@@ -3,13 +3,49 @@
 import * as React from "react";
 import { ArrowLeft, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 
-import { completeSelfAccess } from "@/lib/self-access";
+import { callAccountSetup } from "@/lib/account-setup-client";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const fieldClass =
   "h-12 w-full rounded-xl border border-[#dbe5ef] bg-[#f8fafc] px-4 text-sm text-[#142b4a] outline-none placeholder:text-[#94a3b8] focus:border-[#1769e8] focus:ring-4 focus:ring-blue-100";
-
 const logoUrl = "/negodigi-logo.png";
+const setupStorageKey = "negodigi:first-access";
+
+type SetupStatus = "pending" | "approved" | "processing" | "rejected" | "expired" | "consumed";
+type SetupRequest = {
+  request_id: string;
+  secret: string;
+  reference: string;
+  expires_at: string;
+  status: SetupStatus;
+  email: string;
+};
+
+function restoreSetupRequest(): SetupRequest | null {
+  try {
+    const raw = sessionStorage.getItem(setupStorageKey);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<SetupRequest>;
+    if (
+      typeof value.request_id !== "string" ||
+      typeof value.secret !== "string" ||
+      typeof value.reference !== "string" ||
+      typeof value.expires_at !== "string" ||
+      typeof value.email !== "string" ||
+      !["pending", "approved", "processing", "rejected", "expired", "consumed"].includes(value.status || "")
+    ) {
+      try { sessionStorage.removeItem(setupStorageKey); } catch { /* storage may be unavailable */ }
+      return null;
+    }
+    return value as SetupRequest;
+  } catch {
+    return null;
+  }
+}
+
+function clearSetupRequest() {
+  try { sessionStorage.removeItem(setupStorageKey); } catch { /* storage may be unavailable */ }
+}
 
 export function RegisterForm() {
   const supabase = React.useMemo(() => createSupabaseBrowserClient(), []);
@@ -20,24 +56,93 @@ export function RegisterForm() {
   const [showConfirmation, setShowConfirmation] = React.useState(false);
   const [working, setWorking] = React.useState(false);
   const [message, setMessage] = React.useState("");
+  const [setup, setSetup] = React.useState<SetupRequest | null>(null);
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
+  React.useEffect(() => {
+    setSetup(restoreSetupRequest());
+  }, []);
+
+  React.useEffect(() => {
+    if (!setup || !["pending", "processing"].includes(setup.status)) return;
+    let active = true;
+    const checkStatus = async () => {
+      try {
+        const result = await callAccountSetup<{ status: SetupStatus; expires_at?: string }>(supabase, {
+          action: "status",
+          request_id: setup.request_id,
+          secret: setup.secret,
+        });
+        if (active) {
+          setSetup((current) => current && current.request_id === setup.request_id
+            ? { ...current, status: result.status, expires_at: result.expires_at || current.expires_at }
+            : current);
+        }
+      } catch {
+        // A temporary connection failure does not cancel the approval request.
+      }
+    };
+    const timer = window.setInterval(() => void checkStatus(), 12000);
+    void checkStatus();
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [setup?.request_id, setup?.secret, setup?.status, supabase]);
+
+  React.useEffect(() => {
+    if (setup && ["rejected", "expired", "consumed"].includes(setup.status)) {
+      clearSetupRequest();
+    }
+  }, [setup]);
+
+  async function requestSetup() {
     if (working) return;
     setMessage("");
+    setWorking(true);
+    try {
+      const result = await callAccountSetup<SetupRequest>(supabase, {
+        action: "request",
+        email: email.trim().toLowerCase(),
+      });
+      const request = { ...result, email: email.trim().toLowerCase() };
+      setSetup(request);
+      try { sessionStorage.setItem(setupStorageKey, JSON.stringify(request)); } catch {
+        setMessage("La solicitud está activa, pero este navegador no permite guardarla para después de actualizar la página.");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo enviar la solicitud.");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function createPassword(event: React.FormEvent) {
+    event.preventDefault();
+    if (working || !setup || setup.status !== "approved") return;
+    setMessage("");
+    if (password.length < 8) {
+      setMessage("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+    if (new TextEncoder().encode(password).length > 72) {
+      setMessage("La contraseña es demasiado larga. Usa como máximo 72 bytes.");
+      return;
+    }
     if (password !== confirmation) {
       setMessage("Las contraseñas no coinciden.");
       return;
     }
     setWorking(true);
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-      await completeSelfAccess(supabase, normalizedEmail, password);
-      const { error } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
+      await callAccountSetup(supabase, {
+        action: "complete",
+        request_id: setup.request_id,
+        secret: setup.secret,
         password,
       });
-      if (error) throw new Error("Tu acceso se preparó, pero no se pudo iniciar la sesión. Vuelve a entrar desde la página principal.");
+      clearSetupRequest();
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      if (error) throw new Error("Tu acceso quedó activado. Entra desde la página principal con la contraseña nueva.");
       window.location.replace("/");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo preparar el acceso.");
@@ -45,6 +150,14 @@ export function RegisterForm() {
       setWorking(false);
     }
   }
+
+  const resetRequest = () => {
+    clearSetupRequest();
+    setSetup(null);
+    setPassword("");
+    setConfirmation("");
+    setMessage("");
+  };
 
   return (
     <main className="auth-shell grid min-h-screen place-items-center bg-[#f5f7fb] p-5 text-[#142b4a]">
@@ -58,43 +171,72 @@ export function RegisterForm() {
         <p className="mt-5 text-center text-[11px] font-semibold uppercase tracking-[.22em] text-[#1769e8]">NegoDigi APP</p>
         <h1 className="mt-3 text-center text-[27px] font-semibold tracking-[-.03em] text-[#102a4a]">Crea tu acceso</h1>
         <p className="mt-3 text-center text-sm leading-6 text-[#64748b]">
-          Usa el email que Dirección tiene registrado en NegoDigi y elige tu contraseña. No necesitas recibir ningún correo ni confirmar nada.
+          Solicita el acceso con el email registrado. Dirección comprobará tu identidad antes de activarlo.
         </p>
 
-        <form onSubmit={submit} className="mt-7 space-y-4">
-          <label className="block space-y-2 text-sm">
-            <span className="font-medium text-[#334155]">Email registrado</span>
-            <div className="relative">
-              <Mail className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
-              <input autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} type="email" placeholder="tu@email.com" className={`${fieldClass} pl-10`} />
-            </div>
-          </label>
-          <label className="block space-y-2 text-sm">
-            <span className="font-medium text-[#334155]">Contraseña</span>
-            <div className="relative">
-              <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
-              <input autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required maxLength={72} type={showPassword ? "text" : "password"} placeholder="Ingresa una contraseña" className={`${fieldClass} pr-11 pl-10`} />
-              <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#94a3b8] transition hover:text-[#334155]" aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-          </label>
-          <label className="block space-y-2 text-sm">
-            <span className="font-medium text-[#334155]">Repite la contraseña</span>
-            <div className="relative">
-              <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
-              <input autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required maxLength={72} type={showConfirmation ? "text" : "password"} placeholder="Repite tu contraseña" className={`${fieldClass} pr-11 pl-10`} />
-              <button type="button" onClick={() => setShowConfirmation((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#94a3b8] transition hover:text-[#334155]" aria-label={showConfirmation ? "Ocultar contraseña" : "Mostrar contraseña"}>
-                {showConfirmation ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-          </label>
-          <button disabled={working} className="h-12 w-full rounded-xl bg-[#1769e8] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(23,105,232,.24)] transition hover:bg-[#125bc9] disabled:opacity-60">
-            {working ? "Preparando acceso…" : "Crear acceso y entrar"}
-          </button>
-        </form>
+        {!setup && (
+          <form onSubmit={(event) => { event.preventDefault(); void requestSetup(); }} className="mt-7 space-y-4">
+            <label className="block space-y-2 text-sm">
+              <span className="font-medium text-[#334155]">Email registrado</span>
+              <div className="relative">
+                <Mail className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
+                <input autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} type="email" placeholder="tu@email.com" className={`${fieldClass} pl-10`} />
+              </div>
+            </label>
+            <button disabled={working} className="h-12 w-full rounded-xl bg-[#1769e8] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(23,105,232,.24)] transition hover:bg-[#125bc9] disabled:opacity-60">
+              {working ? "Enviando solicitud…" : "Solicitar acceso"}
+            </button>
+          </form>
+        )}
+
+        {setup?.status === "pending" && (
+          <div className="mt-7 space-y-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-sm leading-6 text-[#334155]">
+            <p className="font-semibold text-[#142b4a]">Solicitud enviada para revisión</p>
+            <p>Dirección debe comprobar tu identidad por un canal separado antes de aprobar el acceso.</p>
+            <p>Indica esta referencia al contactar con Dirección: <strong className="font-mono tracking-wider text-[#1769e8]">{setup.reference}</strong></p>
+            <p className="text-xs text-[#64748b]">Esta página se actualizará automáticamente cuando se revise la solicitud. La solicitud caduca en 30 minutos.</p>
+          </div>
+        )}
+
+        {setup?.status === "approved" && (
+          <form onSubmit={createPassword} className="mt-7 space-y-4">
+            <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm leading-5 text-emerald-800">Solicitud aprobada. Ya puedes crear tu contraseña.</p>
+            <label className="block space-y-2 text-sm">
+              <span className="font-medium text-[#334155]">Contraseña</span>
+              <div className="relative">
+                <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
+                <input autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} maxLength={72} type={showPassword ? "text" : "password"} placeholder="Ingresa una contraseña" className={`${fieldClass} pr-11 pl-10`} />
+                <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#94a3b8] transition hover:text-[#334155]" aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </label>
+            <label className="block space-y-2 text-sm">
+              <span className="font-medium text-[#334155]">Repite la contraseña</span>
+              <div className="relative">
+                <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
+                <input autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required minLength={8} maxLength={72} type={showConfirmation ? "text" : "password"} placeholder="Repite tu contraseña" className={`${fieldClass} pr-11 pl-10`} />
+                <button type="button" onClick={() => setShowConfirmation((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#94a3b8] transition hover:text-[#334155]" aria-label={showConfirmation ? "Ocultar contraseña" : "Mostrar contraseña"}>
+                  {showConfirmation ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </label>
+            <button disabled={working} className="h-12 w-full rounded-xl bg-[#1769e8] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(23,105,232,.24)] transition hover:bg-[#125bc9] disabled:opacity-60">
+              {working ? "Activando acceso…" : "Crear contraseña y entrar"}
+            </button>
+          </form>
+        )}
+
+        {setup?.status === "processing" && <p className="mt-7 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-5 text-[#334155]">La activación se está completando. Espera un momento antes de cerrar esta página.</p>}
+        {setup && ["rejected", "expired", "consumed"].includes(setup.status) && (
+          <div className="mt-7 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-5 text-amber-800">
+            <p>{setup.status === "rejected" ? "La solicitud no fue aprobada." : setup.status === "expired" ? "La solicitud ha caducado." : "Esta solicitud ya se utilizó."}</p>
+            <button type="button" onClick={resetRequest} className="font-semibold text-[#1769e8] hover:underline">Solicitar acceso de nuevo</button>
+          </div>
+        )}
+
         {message && <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-800">{message}</p>}
-        <p className="mt-5 text-center text-xs leading-5 text-[#94a3b8]">Si el email no está registrado en NegoDigi, tendrás que pedir a Dirección que lo añada.</p>
+        {!setup && <p className="mt-5 text-center text-xs leading-5 text-[#94a3b8]">Si el email no está registrado en NegoDigi, Dirección tendrá que añadirlo primero.</p>}
       </section>
     </main>
   );

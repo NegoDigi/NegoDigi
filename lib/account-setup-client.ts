@@ -13,3 +13,4 @@ export async function callAccountSetup<T>(client: SupabaseClient, body: Record<s
   if (data?.error) throw new Error(String(data.error));
   return data as T;
 }
+

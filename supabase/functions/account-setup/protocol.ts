@@ -26,5 +26,6 @@ export function validSetupProof(id: unknown, secret: unknown): boolean {
 }
 
 export function validSetupPassword(value: unknown): value is string {
-  return typeof value === "string" && value.length >= 10 && new TextEncoder().encode(value).length <= 72;
+  return typeof value === "string" && value.length >= 8 && new TextEncoder().encode(value).length <= 72;
 }
+
