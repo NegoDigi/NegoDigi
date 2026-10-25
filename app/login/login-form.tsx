@@ -50,14 +50,14 @@ export function LoginForm() {
         <Label htmlFor="email" className="text-sm font-medium text-[#334155]">Email</Label>
         <div className="relative">
           <Mail className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
-          <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="tu@email.com" className="h-12 rounded-xl border-[#dbe5ef] bg-[#f8fafc] pl-10 text-[#142b4a] shadow-none placeholder:text-[#94a3b8] focus:border-[#1769e8] focus:ring-4 focus:ring-blue-100" />
+          <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="tu@email.com" className="h-12 rounded-xl border-[#dbe5ef] bg-[#f8fafc] pl-10 !text-[#142b4a] shadow-none placeholder:text-[#94a3b8] selection:bg-[#bfdbfe] selection:text-[#102a4a] focus:border-[#1769e8] focus:ring-4 focus:ring-blue-100" />
         </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="password" className="text-sm font-medium text-[#334155]">Contraseña</Label>
         <div className="relative">
           <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
-          <Input id="password" type={visible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} required placeholder="Ingresa tu contraseña" className="h-12 rounded-xl border-[#dbe5ef] bg-[#f8fafc] pr-11 pl-10 text-[#142b4a] shadow-none placeholder:text-[#94a3b8] focus:border-[#1769e8] focus:ring-4 focus:ring-blue-100" />
+          <Input id="password" type={visible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} required placeholder="Ingresa tu contraseña" className="h-12 rounded-xl border-[#dbe5ef] bg-[#f8fafc] pr-11 pl-10 !text-[#142b4a] shadow-none placeholder:text-[#94a3b8] selection:bg-[#bfdbfe] selection:text-[#102a4a] focus:border-[#1769e8] focus:ring-4 focus:ring-blue-100" />
           <button type="button" onClick={() => setVisible((value) => !value)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#94a3b8] transition hover:text-[#334155]" aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}>
             {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
