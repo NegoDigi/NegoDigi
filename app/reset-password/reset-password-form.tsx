@@ -7,7 +7,9 @@ import Link from "next/link";
 import { createSupabaseRecoveryBrowserClient } from "@/lib/supabase/client";
 
 const fieldClass =
-  "h-12 w-full rounded-xl border border-white/10 bg-white/[.03] px-4 text-sm outline-none focus:ring-2 focus:ring-violet-400/50";
+  "h-12 w-full rounded-xl border border-[#dbe5ef] bg-[#f8fafc] px-4 text-sm text-[#142b4a] outline-none placeholder:text-[#94a3b8] focus:border-[#1769e8] focus:ring-4 focus:ring-blue-100";
+
+const logoUrl = "https://pub-faa10ba6d70742bb8e0160e5bfc808f0.r2.dev/LOGO%20NEGODIGI.png";
 
 type PageState =
   | "checking"
@@ -152,77 +154,78 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#080b11] p-5 text-white">
-      <section className="w-full max-w-md rounded-3xl border border-white/[.08] bg-[#111722] p-7 shadow-2xl shadow-black/30">
-        <Link href="/" className="inline-flex items-center gap-2 text-xs text-slate-500 hover:text-white">
+    <main className="auth-shell grid min-h-screen place-items-center bg-[#f5f7fb] p-5 text-[#142b4a]">
+      <section className="auth-card w-full max-w-md rounded-[28px] border border-[#e2e8f0] bg-white px-7 py-9 shadow-[0_24px_70px_rgba(15,23,42,.10)] sm:px-9">
+        <Link href="/" className="inline-flex items-center gap-2 text-xs text-[#64748b] transition hover:text-[#142b4a]">
           <ArrowLeft className="size-4" /> Volver al acceso
         </Link>
-        <span className="mt-7 grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-violet-700 text-sm font-bold">N</span>
-        <p className="mt-5 text-[11px] uppercase tracking-[.2em] text-violet-300">NegoDigi APP</p>
-        <h1 className="mt-2 text-2xl font-semibold">Cambia tu contraseña</h1>
+        <div className="mt-7 flex justify-center">
+          <img src={logoUrl} alt="NegoDigi" className="h-14 w-auto max-w-[200px] object-contain" />
+        </div>
+        <p className="mt-5 text-center text-[11px] font-semibold uppercase tracking-[.22em] text-[#1769e8]">NegoDigi APP</p>
+        <h1 className="mt-3 text-center text-[27px] font-semibold tracking-[-.03em] text-[#102a4a]">Cambia tu contraseña</h1>
 
-        {state === "checking" && <p className="mt-5 text-sm leading-6 text-slate-400">Comprobando tu enlace seguro…</p>}
+        {state === "checking" && <p className="mt-5 text-sm leading-6 text-[#64748b]">Comprobando tu enlace seguro…</p>}
         {state === "awaiting-confirmation" && (
           <div className="mt-5 space-y-4">
-            <p className="text-sm leading-6 text-slate-300">Tu enlace está listo. Pulsa el botón para validarlo y elegir una nueva contraseña.</p>
-            <button type="button" onClick={() => void continueRecovery()} disabled={working} className="flex h-12 w-full items-center justify-center rounded-xl bg-violet-500 text-sm font-medium text-white hover:bg-violet-400 disabled:opacity-60">
+            <p className="text-sm leading-6 text-[#64748b]">Tu enlace está listo. Pulsa el botón para validarlo y elegir una nueva contraseña.</p>
+            <button type="button" onClick={() => void continueRecovery()} disabled={working} className="flex h-12 w-full items-center justify-center rounded-xl bg-[#1769e8] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(23,105,232,.24)] transition hover:bg-[#125bc9] disabled:opacity-60">
               {working ? "Validando enlace…" : "Continuar para cambiarla"}
             </button>
           </div>
         )}
         {state === "enter-code" && (
           <form onSubmit={verifyCode} className="mt-6 space-y-4">
-            <p className="text-sm leading-6 text-slate-300">Introduce el código de 6 dígitos que aparece en el email de NegoDigi. Este método evita que un escáner de correo invalide el enlace.</p>
+            <p className="text-sm leading-6 text-[#64748b]">Introduce el código de 6 dígitos que aparece en el email de NegoDigi. Este método evita que un escáner de correo invalide el enlace.</p>
             <label className="block space-y-2 text-sm">
-              <span className="text-slate-300">Email</span>
+              <span className="font-medium text-[#334155]">Email</span>
               <input autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} type="email" placeholder="tu@email.com" className={fieldClass} />
             </label>
             <label className="block space-y-2 text-sm">
-              <span className="text-slate-300">Código de recuperación</span>
+              <span className="font-medium text-[#334155]">Código de recuperación</span>
               <input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} required maxLength={6} type="text" placeholder="123456" className={`${fieldClass} text-center text-lg tracking-[.3em]`} />
             </label>
-            <button disabled={working} className="h-12 w-full rounded-xl bg-violet-500 text-sm font-medium text-white hover:bg-violet-400 disabled:opacity-60">{working ? "Verificando…" : "Verificar código"}</button>
+            <button disabled={working} className="h-12 w-full rounded-xl bg-[#1769e8] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(23,105,232,.24)] transition hover:bg-[#125bc9] disabled:opacity-60">{working ? "Verificando…" : "Verificar código"}</button>
           </form>
         )}
         {state === "invalid" && (
           <div className="mt-5 space-y-4">
-            <p className="text-sm leading-6 text-slate-300">Este enlace ha caducado o ya se ha utilizado. Solicita uno nuevo y usa el último mensaje que recibas.</p>
-            <Link href="/forgot-password" className="flex h-12 items-center justify-center rounded-xl bg-violet-500 text-sm font-medium text-white hover:bg-violet-400">Solicitar otro enlace</Link>
+            <p className="text-sm leading-6 text-[#64748b]">Este enlace ha caducado o ya se ha utilizado. Solicita uno nuevo y usa el último mensaje que recibas.</p>
+            <Link href="/forgot-password" className="flex h-12 items-center justify-center rounded-xl bg-[#1769e8] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(23,105,232,.24)] transition hover:bg-[#125bc9]">Solicitar otro enlace</Link>
           </div>
         )}
         {state === "done" && (
           <div className="mt-5 space-y-4">
-            <p className="rounded-xl border border-emerald-400/20 bg-emerald-400/[.08] p-4 text-sm leading-6 text-emerald-200" role="status">Tu contraseña se ha cambiado correctamente. Ya puedes entrar con ella.</p>
-            <Link href="/" className="flex h-12 items-center justify-center rounded-xl bg-violet-500 text-sm font-medium text-white hover:bg-violet-400">Entrar en NegoDigi</Link>
+            <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-700" role="status">Tu contraseña se ha cambiado correctamente. Ya puedes entrar con ella.</p>
+            <Link href="/" className="flex h-12 items-center justify-center rounded-xl bg-[#1769e8] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(23,105,232,.24)] transition hover:bg-[#125bc9]">Entrar en NegoDigi</Link>
           </div>
         )}
         {state === "ready" && (
           <form onSubmit={submit} className="mt-7 space-y-4">
-            <p className="text-sm leading-6 text-slate-300">Elige una contraseña nueva para volver a entrar en NegoDigi.</p>
+            <p className="text-sm leading-6 text-[#64748b]">Elige una contraseña nueva para volver a entrar en NegoDigi.</p>
             <label className="block space-y-2 text-sm">
-              <span className="text-slate-300">Nueva contraseña</span>
+              <span className="font-medium text-[#334155]">Nueva contraseña</span>
               <div className="relative">
-                <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-600" />
+                <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
                 <input autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required maxLength={72} type={showPassword ? "text" : "password"} placeholder="Ingresa una contraseña" className={`${fieldClass} pr-11 pl-10`} />
-                <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-slate-600 hover:text-white" aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
+                <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#94a3b8] transition hover:text-[#334155]" aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
               </div>
             </label>
             <label className="block space-y-2 text-sm">
-              <span className="text-slate-300">Repite la contraseña</span>
+              <span className="font-medium text-[#334155]">Repite la contraseña</span>
               <div className="relative">
-                <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-600" />
+                <LockKeyhole className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#94a3b8]" />
                 <input autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required maxLength={72} type={showConfirmation ? "text" : "password"} placeholder="Repite tu contraseña" className={`${fieldClass} pr-11 pl-10`} />
-                <button type="button" onClick={() => setShowConfirmation((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-slate-600 hover:text-white" aria-label={showConfirmation ? "Ocultar contraseña" : "Mostrar contraseña"}>{showConfirmation ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
+                <button type="button" onClick={() => setShowConfirmation((visible) => !visible)} className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#94a3b8] transition hover:text-[#334155]" aria-label={showConfirmation ? "Ocultar contraseña" : "Mostrar contraseña"}>{showConfirmation ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
               </div>
             </label>
-            <button disabled={working} className="h-12 w-full rounded-xl bg-violet-500 text-sm font-medium text-white hover:bg-violet-400 disabled:opacity-60">{working ? "Cambiando…" : "Cambiar contraseña"}</button>
+            <button disabled={working} className="h-12 w-full rounded-xl bg-[#1769e8] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(23,105,232,.24)] transition hover:bg-[#125bc9] disabled:opacity-60">{working ? "Cambiando…" : "Cambiar contraseña"}</button>
           </form>
         )}
-        {message && <p role="alert" className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/[.08] p-3 text-sm leading-5 text-amber-200">{message}</p>}
+        {message && <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-800">{message}</p>}
       </section>
     </main>
   );
 }
-
 
 
