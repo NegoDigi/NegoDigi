@@ -2672,6 +2672,12 @@ export function OperatingSystem() {
         setProfile(current);
         setAccessError(null);
         setConnectionIssue(null);
+        // Paint the authenticated shell as soon as identity and permissions
+        // are validated. The large workspace dataset continues in background.
+        if (initialLoad.current) {
+          initialLoad.current = false;
+          setLoading(false);
+        }
         // Access auditing is useful, but it must never hold the whole application
         // on the startup screen. This RPC can be slow when the database is busy.
         if (accessRecordedFor.current !== user.id) {
