@@ -62,6 +62,9 @@ test("keeps the universe presentation and the complete handbook resources", asyn
   assert.match(css, /\.page-heading-blue-panel/);
   assert.match(css, /\.directory-table-wrap/);
   assert.match(source, /Podio actual del equipo/);
+  assert.doesNotMatch(source, /negodigi-podium-sweep/);
+  assert.doesNotMatch(source, /negodigi-podium-aura/);
+  assert.match(source, /<MarketingWorkspace\s+key=\{view\}/);
   assert.match(source, /function RestoredHandbookView/);
   assert.match(source, /pages\(manualPages, "Manual completo"\)/);
   assert.match(source, /Documentación legal/);

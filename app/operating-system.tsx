@@ -7946,6 +7946,7 @@ export function OperatingSystem() {
     )
       return (
         <MarketingWorkspace
+          key={view}
           organizationId={profile?.organization_id || ""}
           canEdit={admin && !isPreviewing}
           initialSection={view === "crm" ? "crm" : "home"}
@@ -17585,26 +17586,6 @@ function VisualTeamPodium({
     place === 1 ? "Bono extra" : place === 2 ? "Giro especial" : "Giro ruleta";
   return (
     <Panel className={`p-5 ${compact ? "" : ""}`}>
-      <style>{`
-        @keyframes negodigi-podium-aura {
-          0%, 100% { transform: scale(.96); opacity: .28; }
-          50% { transform: scale(1.04); opacity: .62; }
-        }
-        @keyframes negodigi-podium-sweep {
-          0% { transform: rotate(0deg); opacity: .35; }
-          50% { opacity: .9; }
-          100% { transform: rotate(360deg); opacity: .35; }
-        }
-        .negodigi-podium-aura { animation: negodigi-podium-aura 3.8s ease-in-out infinite; }
-        .negodigi-podium-sweep {
-          animation: negodigi-podium-sweep 6s linear infinite;
-          padding: 1px;
-          background: conic-gradient(from 0deg, transparent 0deg, var(--podium-glow) 72deg, transparent 138deg);
-          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-        }
-      `}</style>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold text-white">Podio actual del equipo</h2>
@@ -17624,19 +17605,7 @@ function VisualTeamPodium({
             >
               <span
                 aria-hidden="true"
-                className={`negodigi-podium-aura pointer-events-none absolute -inset-3 z-0 rounded-[inherit] blur-xl ${index === 1 ? "bg-amber-300/35" : index === 0 ? "bg-sky-200/25" : "bg-orange-300/30"}`}
-              />
-              <span
-                aria-hidden="true"
-                className="negodigi-podium-sweep pointer-events-none absolute -inset-px z-0 rounded-[inherit] opacity-75"
-                style={{
-                  "--podium-glow":
-                    index === 1
-                      ? "rgba(251,191,36,.82)"
-                      : index === 0
-                        ? "rgba(125,211,252,.72)"
-                        : "rgba(251,146,60,.74)",
-                } as React.CSSProperties}
+                className={`pointer-events-none absolute -inset-3 z-0 rounded-[inherit] blur-xl ${index === 1 ? "bg-amber-300/25" : index === 0 ? "bg-sky-200/15" : "bg-orange-300/20"}`}
               />
               <span
                 className={`absolute z-10 -top-10 max-w-[calc(100%-1rem)] truncate rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${index === 1 ? "border-amber-300/45 bg-amber-300/15 text-amber-100" : index === 0 ? "border-slate-200/20 bg-slate-200/[.08] text-slate-100" : "border-orange-300/30 bg-orange-300/[.09] text-orange-100"}`}
