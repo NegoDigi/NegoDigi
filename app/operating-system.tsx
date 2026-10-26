@@ -2275,6 +2275,7 @@ export function OperatingSystem() {
   const [productionHistory, setProductionHistory] = React.useState<
     ProductionVideoHistory[]
   >([]);
+  const [historyReloadVersion, setHistoryReloadVersion] = React.useState(0);
   const [editorPerformance, setEditorPerformance] = React.useState<
     EditorMonthlyPerformance[]
   >([]);
@@ -2889,7 +2890,6 @@ export function OperatingSystem() {
           periodRows,
           snapshotRows,
           historicalClosureRows,
-          productionHistoryRows,
           performanceRows,
           activityRows,
           planningRows,
@@ -3236,26 +3236,6 @@ export function OperatingSystem() {
             120_000,
           ),
           queryCache.load(
-            user.id + ":productionHistoryRows",
-            () =>
-              current.role === "owner" ||
-              current.role === "admin" ||
-              current.role === "editor"
-                ? supabase
-                    .from("production_video_history")
-                    .select("delivery_id,organization_id,job_id,job_title,client_id,client_name,assignment_id,editor_id,editor_name,job_item_id,service,video_id,video_label,video_number,quantity,client_unit_price,editor_unit_cost,client_total,editor_total,net_profit,assigned_on,planned_on,due_on,delivered_at,approved_at,correction_count,version_count,versions,was_late,status,period_key,billable")
-                    .eq("organization_id", current.organization_id)
-                    .order("approved_at", {
-                      ascending: false,
-                      nullsFirst: false,
-                    })
-                    .limit(5000)
-                : Promise.resolve({ data: [], error: null }),
-            scopes,
-            ["production"],
-            120_000,
-          ),
-          queryCache.load(
             user.id + ":performanceRows",
             () =>
               current.role === "owner" ||
@@ -3494,6 +3474,7 @@ export function OperatingSystem() {
                       "id,period_key,rank_position,editor_id,amount,description,status,confirmed_at",
                     )
                     .order("period_key", { ascending: false })
+                    .limit(300)
                 : Promise.resolve({ data: [], error: null }),
             scopes,
             ["ranking"],
@@ -3620,7 +3601,6 @@ export function OperatingSystem() {
           ["notificaciones", notificationRows.error],
           ["periodos de producción", periodRows.error],
           ["cierres mensuales", snapshotRows.error],
-          ["historial permanente de producción", productionHistoryRows.error],
           ["métricas de editores", performanceRows.error],
           ["actividad del equipo", activityRows.error],
           ["planificación del equipo", planningRows.error],
@@ -3777,10 +3757,6 @@ export function OperatingSystem() {
             (historicalClosureRows.data ||
               []) as ProductionHistoricalMonthClosure[],
           );
-        if (!productionHistoryRows.error)
-          setProductionHistory(
-            (productionHistoryRows.data || []) as ProductionVideoHistory[],
-          );
         if (!performanceRows.error)
           setEditorPerformance(
             (performanceRows.data || []) as EditorMonthlyPerformance[],
@@ -3909,9 +3885,42 @@ export function OperatingSystem() {
     [runRefresh],
   );
   const refresh = React.useCallback(
-    (scope?: string | string[]) => refreshCoordinator.refresh(scope),
+    (scope?: string | string[]) =>
+      refreshCoordinator.refresh(scope).then(() => {
+        setHistoryReloadVersion((version) => version + 1);
+      }),
     [refreshCoordinator],
   );
+  React.useEffect(() => {
+    if (
+      !profile ||
+      !["owner", "admin", "editor"].includes(profile.role) ||
+      !["operaciones", "editor_home", "editor_performance"].includes(view)
+    ) return;
+
+    let cancelled = false;
+    const periodKey = madridMonthKey();
+    void supabase
+      .from("production_video_history")
+      .select("delivery_id,organization_id,job_id,job_title,client_id,client_name,assignment_id,editor_id,editor_name,job_item_id,service,video_id,video_label,video_number,quantity,client_unit_price,editor_unit_cost,client_total,editor_total,net_profit,assigned_on,planned_on,due_on,delivered_at,approved_at,correction_count,version_count,versions,was_late,status,period_key,billable")
+      .eq("organization_id", profile.organization_id)
+      .eq("period_key", periodKey)
+      .order("approved_at", { ascending: false, nullsFirst: false })
+      .limit(500)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.warn("[workspace.production-history]", error.message);
+          return;
+        }
+        setProductionHistory((data || []) as ProductionVideoHistory[]);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) console.warn("[workspace.production-history]", error);
+      });
+
+    return () => { cancelled = true; };
+  }, [historyReloadVersion, profile?.organization_id, profile?.role, supabase, view]);
   const refreshHiringLeads = React.useCallback(async () => {
     if (!profile || !isAdministrativeRole(profile.role)) return false;
     const { data, error } = await supabase
