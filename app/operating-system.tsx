@@ -29327,7 +29327,21 @@ function BonusEditForm({
   const [initialAmount, setInitialAmount] = React.useState(
     String(number(bonus.initial_amount)),
   );
-  const [usage, setUsage] = React.useState(serviceUsage);
+  const [usage, setUsage] = React.useState<BonusServiceUsage[]>(() =>
+    Array.isArray(serviceUsage)
+      ? serviceUsage
+          .filter(
+            (row): row is NonNullable<typeof row> =>
+              Boolean(row) && typeof row.service === "string",
+          )
+          .map((row) => ({
+            ...row,
+            quantity: number(row.quantity),
+            unitPrice: number(row.unitPrice),
+            unattributedAmount: number(row.unattributedAmount),
+          }))
+      : [],
+  );
   const [paidOn, setPaidOn] = React.useState(bonus.paid_on || "");
   const [saving, setSaving] = React.useState(false);
   const unattributedAmount = Math.max(0, number(usage[0]?.unattributedAmount));
@@ -32536,12 +32550,44 @@ function FinanceBonusConfigForm({
   const [type, setType] = React.useState<"credit" | "closed_pack">(
     bonus.bonus_type || "credit",
   );
-  const [services, setServices] = React.useState<string[]>(
-    (bonus.allowed_services || []).map((service) => service.service),
+  const [services, setServices] = React.useState<string[]>(() =>
+    Array.isArray(bonus.allowed_services)
+      ? bonus.allowed_services
+          .filter(
+            (service): service is NonNullable<typeof service> =>
+              Boolean(service) && typeof service.service === "string",
+          )
+          .map((service) => service.service)
+      : [],
   );
   const [packItems, setPackItems] = React.useState(() => {
-    const saved = bonus.pack_config?.items || [];
-    return saved.length ? saved : [{ service: bonus.pack_config?.service || "Reels", quantity: number(bonus.pack_config?.quantity), unit_price: number(bonus.pack_config?.total_price) / Math.max(1, number(bonus.pack_config?.quantity)) }];
+    const saved = Array.isArray(bonus.pack_config?.items)
+      ? bonus.pack_config.items
+      : [];
+    const validSaved = saved
+      .filter(
+        (item): item is NonNullable<typeof item> =>
+          Boolean(item) && typeof item.service === "string",
+      )
+      .map((item) => ({
+        service: item.service,
+        quantity: number(item.quantity),
+        unit_price: number(item.unit_price),
+      }));
+    return validSaved.length
+      ? validSaved
+      : [
+          {
+            service:
+              typeof bonus.pack_config?.service === "string"
+                ? bonus.pack_config.service
+                : "Reels",
+            quantity: number(bonus.pack_config?.quantity),
+            unit_price:
+              number(bonus.pack_config?.total_price) /
+              Math.max(1, number(bonus.pack_config?.quantity)),
+          },
+        ];
   });
   const [cycleStart, setCycleStart] = React.useState(bonus.pack_config?.cycle_start || bonus.paid_on || "");
   const [cycleEnd, setCycleEnd] = React.useState(bonus.pack_config?.cycle_end || "");
