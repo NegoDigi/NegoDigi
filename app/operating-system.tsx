@@ -3899,14 +3899,12 @@ export function OperatingSystem() {
     ) return;
 
     let cancelled = false;
-    const periodKey = madridMonthKey();
     void (async () => {
       try {
         const { data, error } = await supabase
           .from("production_video_history")
           .select("delivery_id,organization_id,job_id,job_title,client_id,client_name,assignment_id,editor_id,editor_name,job_item_id,service,video_id,video_label,video_number,quantity,client_unit_price,editor_unit_cost,client_total,editor_total,net_profit,assigned_on,planned_on,due_on,delivered_at,approved_at,correction_count,version_count,versions,was_late,status,period_key,billable")
           .eq("organization_id", profile.organization_id)
-          .eq("period_key", periodKey)
           .order("approved_at", { ascending: false, nullsFirst: false })
           .limit(500);
         if (cancelled) return;
