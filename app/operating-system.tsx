@@ -10296,6 +10296,9 @@ function EditorDashboard({
         key={`${editor?.id || "editor"}-${financialGoals.find((row) => row.period_key === madridMonthKey())?.updated_at || "new"}`}
         editor={editor}
         history={productionHistory}
+        availablePeriods={performance
+          .filter((row) => row.editor_id === editor?.id && number(row.approved_videos) > 0)
+          .map((row) => row.period_key)}
         payments={payments}
         goals={financialGoals}
         onSaveGoal={onSaveFinancialGoal}
@@ -14574,12 +14577,14 @@ function financialHistoryPeriodKey(row: ProductionVideoHistory) {
 function EditorFinancePanel({
   editor,
   history,
+  availablePeriods = [],
   payments,
   goals,
   onSaveGoal,
 }: {
   editor: Editor | null;
   history: ProductionVideoHistory[];
+  availablePeriods?: string[];
   payments: EditorPayment[];
   goals: EditorFinancialGoal[];
   onSaveGoal: (input: {
@@ -14605,15 +14610,61 @@ function EditorFinancePanel({
       [
         ...new Set([
           period,
+          ...availablePeriods,
           ...rows.map(financialHistoryPeriodKey),
         ]),
       ]
         .filter((value): value is string => Boolean(value))
         .sort()
         .reverse(),
-    [period, rows],
+    [period, rows, availablePeriods],
   );
   const [selectedPeriod, setSelectedPeriod] = React.useState(period);
+  const [loadedHistory, setLoadedHistory] = React.useState<{
+    editorId: string;
+    periodKey: string;
+    rows: ProductionVideoHistory[];
+  } | null>(null);
+  const [historyState, setHistoryState] = React.useState<"loading" | "ready" | "error">("loading");
+  React.useEffect(() => {
+    if (tab !== "history" || !editor) return;
+    let cancelled = false;
+    setHistoryState("loading");
+    const client = createSupabaseBrowserClient();
+    void (async () => {
+      try {
+        const { data, error } = await client
+          .from("production_video_history")
+          .select("delivery_id,organization_id,job_id,job_title,client_id,client_name,assignment_id,editor_id,editor_name,job_item_id,service,video_id,video_label,video_number,quantity,client_unit_price,editor_unit_cost,client_total,editor_total,net_profit,assigned_on,planned_on,due_on,delivered_at,approved_at,correction_count,version_count,versions,was_late,status,period_key,billable")
+          .eq("editor_id", editor.id)
+          .eq("period_key", selectedPeriod)
+          .order("approved_at", { ascending: false, nullsFirst: false })
+          .limit(500);
+        if (cancelled) return;
+        if (error) {
+          console.warn("[editor.finance-history]", error.message);
+          setHistoryState("error");
+          return;
+        }
+        setLoadedHistory({
+          editorId: editor.id,
+          periodKey: selectedPeriod,
+          rows: (data || []) as ProductionVideoHistory[],
+        });
+        setHistoryState("ready");
+      } catch (error) {
+        if (!cancelled) {
+          console.warn("[editor.finance-history]", error);
+          setHistoryState("error");
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tab, selectedPeriod, editor?.id]);
+  const selectedHistoryReady =
+    historyState === "ready" &&
+    loadedHistory?.editorId === editor?.id &&
+    loadedHistory?.periodKey === selectedPeriod;
   const goal = goals.find((row) => row.period_key === period);
   const [goalAmount, setGoalAmount] = React.useState(
     String(number(goal?.target_amount)),
@@ -14678,9 +14729,7 @@ function EditorFinancePanel({
   const progress = target
     ? Math.min(100, Math.round((monthIncome * 100) / target))
     : 0;
-  const selectedRows = rows.filter(
-    (row) => financialHistoryPeriodKey(row) === selectedPeriod,
-  );
+  const selectedRows = selectedHistoryReady ? loadedHistory?.rows || [] : [];
   const groupedClients = React.useMemo(() => {
     const grouped = new Map<
       string,
@@ -15021,12 +15070,9 @@ function EditorFinancePanel({
               <div>
                 <h2 className="font-semibold text-white">
                   Historial mensual: {formatPeriodLabel(selectedPeriod)} —{" "}
-                  {euro.format(
-                    selectedRows.reduce(
-                      (sum, row) => sum + number(row.editor_total),
-                      0,
-                    ),
-                  )}
+                  {selectedHistoryReady
+                    ? euro.format(selectedRows.reduce((sum, row) => sum + number(row.editor_total), 0))
+                    : "Cargando…"}
                 </h2>
               </div>
               <select
@@ -15100,7 +15146,11 @@ function EditorFinancePanel({
                         colSpan={4}
                         className="h-40 text-center text-slate-500"
                       >
-                        No hay trabajos aprobados en este mes.
+                        {historyState === "error"
+                           ? "No se pudo cargar el historial. Vuelve a intentarlo."
+                           : !selectedHistoryReady
+                             ? "Cargando historial…"
+                             : "No hay trabajos aprobados en este mes."}
                       </td>
                     </tr>
                   )}
