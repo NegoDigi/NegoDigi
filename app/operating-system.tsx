@@ -14620,6 +14620,18 @@ function EditorFinancePanel({
     [period, rows, availablePeriods],
   );
   const [selectedPeriod, setSelectedPeriod] = React.useState(period);
+  const cachedCurrentRows = React.useMemo(
+    () =>
+      selectedPeriod === period && editor
+        ? rows.filter(
+            (row) =>
+              row.editor_id === editor.id &&
+              financialHistoryPeriodKey(row) === selectedPeriod,
+          )
+        : [],
+    [rows, editor?.id, period, selectedPeriod],
+  );
+  const hasCachedCurrentRows = cachedCurrentRows.length > 0;
   const [loadedHistory, setLoadedHistory] = React.useState<{
     editorId: string;
     periodKey: string;
@@ -14628,6 +14640,10 @@ function EditorFinancePanel({
   const [historyState, setHistoryState] = React.useState<"loading" | "ready" | "error">("loading");
   React.useEffect(() => {
     if (tab !== "history" || !editor) return;
+    if (hasCachedCurrentRows) {
+      setHistoryState("ready");
+      return;
+    }
     let cancelled = false;
     setHistoryState("loading");
     const client = createSupabaseBrowserClient();
@@ -14660,11 +14676,13 @@ function EditorFinancePanel({
       }
     })();
     return () => { cancelled = true; };
-  }, [tab, selectedPeriod, editor?.id]);
-  const selectedHistoryReady =
-    historyState === "ready" &&
+  }, [tab, selectedPeriod, editor?.id, hasCachedCurrentRows]);
+  const loadedHistoryMatches =
     loadedHistory?.editorId === editor?.id &&
     loadedHistory?.periodKey === selectedPeriod;
+  const selectedHistoryReady =
+    hasCachedCurrentRows ||
+    (historyState === "ready" && loadedHistoryMatches);
   const goal = goals.find((row) => row.period_key === period);
   const [goalAmount, setGoalAmount] = React.useState(
     String(number(goal?.target_amount)),
@@ -14729,7 +14747,11 @@ function EditorFinancePanel({
   const progress = target
     ? Math.min(100, Math.round((monthIncome * 100) / target))
     : 0;
-  const selectedRows = selectedHistoryReady ? loadedHistory?.rows || [] : [];
+  const selectedRows = hasCachedCurrentRows
+    ? cachedCurrentRows
+    : selectedHistoryReady
+      ? loadedHistory?.rows || []
+      : [];
   const groupedClients = React.useMemo(() => {
     const grouped = new Map<
       string,
@@ -15072,7 +15094,9 @@ function EditorFinancePanel({
                   Historial mensual: {formatPeriodLabel(selectedPeriod)} —{" "}
                   {selectedHistoryReady
                     ? euro.format(selectedRows.reduce((sum, row) => sum + number(row.editor_total), 0))
-                    : "Cargando…"}
+                    : historyState === "error"
+                      ? "No disponible"
+                      : "Cargando…"}
                 </h2>
               </div>
               <select
