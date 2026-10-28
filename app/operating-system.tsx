@@ -14565,6 +14565,12 @@ function financialHistoryDateKey(row: ProductionVideoHistory) {
   );
 }
 
+function financialHistoryPeriodKey(row: ProductionVideoHistory) {
+  return /^\d{4}-\d{2}$/.test(row.period_key)
+    ? row.period_key
+    : financialHistoryDateKey(row)?.slice(0, 7) || null;
+}
+
 function EditorFinancePanel({
   editor,
   history,
@@ -14588,7 +14594,7 @@ function EditorFinancePanel({
   const rows = React.useMemo(() => {
     const seenDeliveries = new Set<string>();
     return history.filter((row) => {
-      if (!financialHistoryDateKey(row)) return false;
+      if (!financialHistoryPeriodKey(row)) return false;
       if (seenDeliveries.has(row.delivery_id)) return false;
       seenDeliveries.add(row.delivery_id);
       return true;
@@ -14599,7 +14605,7 @@ function EditorFinancePanel({
       [
         ...new Set([
           period,
-          ...rows.map((row) => financialHistoryDateKey(row)?.slice(0, 7)),
+          ...rows.map(financialHistoryPeriodKey),
         ]),
       ]
         .filter((value): value is string => Boolean(value))
@@ -14627,7 +14633,7 @@ function EditorFinancePanel({
       { period: string; income: number; videos: number }
     >();
     rows.forEach((row) => {
-      const rowPeriod = financialHistoryDateKey(row)?.slice(0, 7);
+      const rowPeriod = financialHistoryPeriodKey(row);
       if (!rowPeriod) return;
       const current = grouped.get(rowPeriod) || {
         period: rowPeriod,
@@ -14650,7 +14656,7 @@ function EditorFinancePanel({
     }));
   }, [rows]);
   const monthRows = rows.filter(
-    (row) => financialHistoryDateKey(row)?.slice(0, 7) === period,
+    (row) => financialHistoryPeriodKey(row) === period,
   );
   const monthIncome = monthRows.reduce(
     (sum, row) => sum + number(row.editor_total),
@@ -14673,7 +14679,7 @@ function EditorFinancePanel({
     ? Math.min(100, Math.round((monthIncome * 100) / target))
     : 0;
   const selectedRows = rows.filter(
-    (row) => financialHistoryDateKey(row)?.slice(0, 7) === selectedPeriod,
+    (row) => financialHistoryPeriodKey(row) === selectedPeriod,
   );
   const groupedClients = React.useMemo(() => {
     const grouped = new Map<
