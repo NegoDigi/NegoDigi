@@ -2994,7 +2994,7 @@ export function OperatingSystem() {
                 ? supabase
                     .from("bonus_balances")
                     .select(
-                      "id,client_id,name,initial_amount,declared_pending_amount,used_amount,available_amount,excess_amount,status,paid_on,expires_on,updated_at,
+                      "id,client_id,name,initial_amount,declared_pending_amount,used_amount,available_amount,excess_amount,status,paid_on,expires_on,updated_at",
                     )
                     .order("updated_at", { ascending: false })
                 : Promise.resolve({ data: [], error: null }),
@@ -3009,7 +3009,7 @@ export function OperatingSystem() {
                 ? supabase
                     .from("bonus_accounts")
                     .select(
-                      "id,bonus_type,allowed_services,pack_config,delivery_frequency,renewal_notice_days,notes,
+                      "id,bonus_type,allowed_services,pack_config,delivery_frequency,renewal_notice_days,notes",
                     )
                 : Promise.resolve({ data: [], error: null }),
             scopes,
