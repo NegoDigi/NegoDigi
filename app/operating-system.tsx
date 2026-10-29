@@ -611,6 +611,8 @@ type Bonus = {
   status: string;
   paid_on: string | null;
   updated_at: string | null;
+  expires_on?: string | null;
+  renewal_notice_days?: number | null;
   bonus_type?: "credit" | "closed_pack";
   allowed_services?:
     { service: string; client_unit_price?: number | null }[] | null;
@@ -2992,7 +2994,7 @@ export function OperatingSystem() {
                 ? supabase
                     .from("bonus_balances")
                     .select(
-                      "id,client_id,name,initial_amount,declared_pending_amount,used_amount,available_amount,excess_amount,status,paid_on,updated_at",
+                      "id,client_id,name,initial_amount,declared_pending_amount,used_amount,available_amount,excess_amount,status,paid_on,expires_on,updated_at,
                     )
                     .order("updated_at", { ascending: false })
                 : Promise.resolve({ data: [], error: null }),
@@ -3007,7 +3009,7 @@ export function OperatingSystem() {
                 ? supabase
                     .from("bonus_accounts")
                     .select(
-                      "id,bonus_type,allowed_services,pack_config,delivery_frequency,notes",
+                      "id,bonus_type,allowed_services,pack_config,delivery_frequency,renewal_notice_days,notes,
                     )
                 : Promise.resolve({ data: [], error: null }),
             scopes,
@@ -3042,6 +3044,7 @@ export function OperatingSystem() {
                       "id,client_id,job_id,bonus_id,amount,source,description,started_on,status,clients(id,name)",
                     )
                     .eq("status", "open")
+                    .or("source.is.null,source.not.in.(pack_cycle,pack_renewal)")
                     .order("started_on", { ascending: true, nullsFirst: true })
                     .order("created_at", { ascending: true })
                 : Promise.resolve({ data: [], error: null }),
@@ -3652,6 +3655,7 @@ export function OperatingSystem() {
                 | "allowed_services"
                 | "pack_config"
                 | "delivery_frequency"
+                | "renewal_notice_days"
                 | "notes"
               >[]
             ).map((row) => [row.id, row]),
@@ -4750,13 +4754,6 @@ export function OperatingSystem() {
         });
       if (movementError) {
         setError(movementError.message);
-        return false;
-      }
-    }
-    if (input.bonus_type === "closed_pack") {
-      const { error: renewalError } = await supabase.rpc("refresh_closed_pack_receivables");
-      if (renewalError) {
-        setError(`El pack se guardó, pero no se pudo actualizar su cobro: ${renewalError.message}`);
         return false;
       }
     }
@@ -31855,6 +31852,28 @@ function FinanceBonusesManagement({
                 (item) => item.id === bonus.client_id,
               );
               const isPack = bonus.bonus_type === "closed_pack";
+              const renewalDate = bonus.pack_config?.cycle_end || bonus.expires_on;
+              const renewalTimestamp = renewalDate
+                ? new Date(`${renewalDate}T00:00:00`).getTime()
+                : Number.NaN;
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const renewalDaysRemaining = Number.isFinite(renewalTimestamp)
+                ? Math.round((renewalTimestamp - today.getTime()) / 86_400_000)
+                : null;
+              const renewalLabel =
+                isPack &&
+                !clientMode &&
+                (bonus.status === "expired" ||
+                  (renewalDaysRemaining !== null && renewalDaysRemaining < 0))
+                  ? "Revisar renovación"
+                  : isPack &&
+                      !clientMode &&
+                      renewalDaysRemaining !== null &&
+                      renewalDaysRemaining <=
+                        Math.max(0, Number(bonus.renewal_notice_days ?? 7))
+                    ? "Renueva pronto"
+                    : null;
               return (
                 <tr key={bonus.id} className="border-b border-white/[.045]">
                   <td className="py-3 pl-5">
@@ -31872,9 +31891,20 @@ function FinanceBonusesManagement({
                     </button>
                   </td>
                   <td>
-                    <Status tone={isPack ? "blue" : "green"}>
-                      {isPack ? "Pack cerrado" : "Bono de crédito"}
-                    </Status>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Status tone={isPack ? "blue" : "green"}>
+                        {isPack ? "Pack cerrado" : "Bono de crédito"}
+                      </Status>
+                      {renewalLabel && (
+                        <span
+                          title="Recordatorio de renovación; no genera un cobro automático."
+                          className="inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-600 dark:text-amber-300"
+                        >
+                          <Clock3 aria-hidden="true" className="h-3 w-3" />
+                          {renewalLabel}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="number-tabular text-slate-200">
                     {euro.format(number(bonus.initial_amount))}
