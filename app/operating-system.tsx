@@ -31863,12 +31863,10 @@ function FinanceBonusesManagement({
                 : null;
               const renewalLabel =
                 isPack &&
-                !clientMode &&
                 (bonus.status === "expired" ||
                   (renewalDaysRemaining !== null && renewalDaysRemaining < 0))
                   ? "Revisar renovación"
                   : isPack &&
-                      !clientMode &&
                       renewalDaysRemaining !== null &&
                       renewalDaysRemaining <=
                         Math.max(0, Number(bonus.renewal_notice_days ?? 7))
