@@ -123,8 +123,8 @@ function LabelList(props: ChartLabelListProps) {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 type AppRole = "owner" | "admin" | "ceo" | "editor" | "client" | "affiliate";
 type PortalRole = "Dirección" | "Editor" | "Cliente";
-// This is deliberately UI-only. Remembering it restores only the local view;
-// the authenticated Supabase profile remains the source of truth for access.
+// This is deliberately UI-only. It is never persisted or used to authorize a
+// Supabase request; the authenticated profile remains the source of truth.
 type AdminPreviewRole = Exclude<PortalRole, "Dirección"> | null;
 type AppearanceTheme = "light" | "dark";
 type ViewId =
@@ -1043,7 +1043,7 @@ const LEGACY_PREVIEW_STORAGE_KEYS = [
   "negodigi-preview-client-id",
 ] as const;
 const NAVIGATION_STORAGE_KEY = "negodigi-navigation-state-v2";
-const APPEARANCE_DEFAULT_MIGRATION_KEY = "negodigi-appearance-default-v3";
+const APPEARANCE_DEFAULT_MIGRATION_KEY = "negodigi-appearance-default-v2";
 type PersistedProductionNavigation = {
   section?: "principal" | "management" | "history" | "services";
   tab?: "pending" | "planned" | "history" | "corrections";
@@ -1068,9 +1068,6 @@ type PersistedCeoNavigation = {
 };
 type PersistedNavigation = {
   view?: ViewId;
-  previewRole?: AdminPreviewRole;
-  editorPreviewId?: string;
-  clientPreviewId?: string;
   production?: PersistedProductionNavigation;
   workspace?: PersistedWorkspaceNavigation;
   ceo?: PersistedCeoNavigation;
@@ -1095,8 +1092,6 @@ function isViewId(value: unknown): value is ViewId {
       "conocimiento",
       "ajustes",
       "nucleo",
-      "editor_home",
-      "editor_news",
       "editor_production",
       "editor_performance",
     ].includes(value)
@@ -1109,9 +1104,6 @@ function readNavigationState(): PersistedNavigation {
       window.localStorage.getItem(NAVIGATION_STORAGE_KEY) || "null",
     ) as {
       view?: unknown;
-      previewRole?: unknown;
-      editorPreviewId?: unknown;
-      clientPreviewId?: unknown;
       production?: Record<string, unknown>;
       workspace?: Record<string, unknown>;
       ceo?: Record<string, unknown>;
@@ -1121,18 +1113,6 @@ function readNavigationState(): PersistedNavigation {
     const ceo = parsed?.ceo;
     return {
       view: isViewId(parsed?.view) ? parsed.view : undefined,
-      previewRole:
-        parsed?.previewRole === "Editor" || parsed?.previewRole === "Cliente"
-          ? parsed.previewRole
-          : null,
-      editorPreviewId:
-        typeof parsed?.editorPreviewId === "string"
-          ? parsed.editorPreviewId.slice(0, 100)
-          : undefined,
-      clientPreviewId:
-        typeof parsed?.clientPreviewId === "string"
-          ? parsed.clientPreviewId.slice(0, 100)
-          : undefined,
       production:
         production && typeof production === "object"
           ? {
@@ -1219,9 +1199,6 @@ function readNavigationState(): PersistedNavigation {
 }
 function updateNavigationState(patch: {
   view?: ViewId;
-  previewRole?: AdminPreviewRole;
-  editorPreviewId?: string;
-  clientPreviewId?: string;
   production?: PersistedProductionNavigation;
   workspace?: PersistedWorkspaceNavigation;
   ceo?: PersistedCeoNavigation;
@@ -2403,7 +2380,7 @@ export function OperatingSystem() {
     toast.success(message, { id: `success:${message}`, duration: 3500 });
   }, []);
   const [view, setView] = React.useState<ViewId>("inicio");
-  const [appearance, setAppearance] = React.useState<AppearanceTheme>("light");
+  const [appearance, setAppearance] = React.useState<AppearanceTheme>("dark");
   const [privateMode, setPrivateMode] = React.useState(false);
   const [showNewJob, setShowNewJob] = React.useState(false);
   const [showNotifications, setShowNotifications] = React.useState(false);
@@ -2417,8 +2394,6 @@ export function OperatingSystem() {
   const [previewRole, setPreviewRole] = React.useState<AdminPreviewRole>(null);
   const [editorPreviewId, setEditorPreviewId] = React.useState("");
   const [clientPreviewId, setClientPreviewId] = React.useState("");
-  const adminPreviewRestored = React.useRef(false);
-  const preserveAdminPreviewOnLogout = React.useRef(false);
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     setClassicMode(new URLSearchParams(window.location.search).get("layout") === "classic");
@@ -2503,10 +2478,10 @@ export function OperatingSystem() {
     const saved = window.localStorage.getItem("negodigi-appearance");
     const alreadyMigrated =
       window.localStorage.getItem(APPEARANCE_DEFAULT_MIGRATION_KEY) === "1";
-    // A saved choice always wins; new or older installations without a valid
-    // choice start in the lighter, softer appearance.
+    // The legacy branded option was removed. Keep the user's valid preference
+    // and safely move every older value to the refined dark appearance.
     const nextTheme: AppearanceTheme =
-      saved === "light" || saved === "dark" ? saved : "light";
+      saved === "light" || saved === "dark" ? saved : "dark";
     if (!alreadyMigrated) {
       window.localStorage.setItem(APPEARANCE_DEFAULT_MIGRATION_KEY, "1");
       window.localStorage.setItem("negodigi-appearance", nextTheme);
@@ -2534,28 +2509,6 @@ export function OperatingSystem() {
       setNavigationRevision((value) => value + 1);
     }
   }, []);
-  React.useEffect(() => {
-    if (preserveAdminPreviewOnLogout.current) {
-      preserveAdminPreviewOnLogout.current = false;
-      return;
-    }
-    if (!isAdministrativeRole(profile?.role)) {
-      adminPreviewRestored.current = false;
-      return;
-    }
-    if (!adminPreviewRestored.current) {
-      const savedNavigation = readNavigationState();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPreviewRole(savedNavigation.previewRole || null);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setEditorPreviewId(savedNavigation.editorPreviewId || "");
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setClientPreviewId(savedNavigation.clientPreviewId || "");
-      adminPreviewRestored.current = true;
-      return;
-    }
-    updateNavigationState({ previewRole, editorPreviewId, clientPreviewId });
-  }, [profile?.role, previewRole, editorPreviewId, clientPreviewId]);
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("negodigi-private-mode", privateMode ? "1" : "0");
@@ -3926,6 +3879,29 @@ export function OperatingSystem() {
 
     return () => { cancelled = true; };
   }, [historyReloadVersion, profile?.organization_id, profile?.role, supabase, view]);
+  const loadProductionHistoryPeriod = React.useCallback(
+    async (periodKey: string) => {
+      if (
+        !profile?.organization_id ||
+        !["owner", "admin"].includes(profile.role)
+      ) {
+        throw new Error("No tienes permiso para consultar este historial.");
+      }
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey)) {
+        throw new Error("El periodo seleccionado no es válido.");
+      }
+      const { data, error } = await supabase
+        .from("production_video_history")
+        .select("delivery_id,organization_id,job_id,job_title,client_id,client_name,assignment_id,editor_id,editor_name,job_item_id,service,video_id,video_label,video_number,quantity,client_unit_price,editor_unit_cost,client_total,editor_total,net_profit,assigned_on,planned_on,due_on,delivered_at,approved_at,correction_count,version_count,versions,was_late,status,period_key,billable")
+        .eq("organization_id", profile.organization_id)
+        .eq("period_key", periodKey)
+        .order("approved_at", { ascending: false, nullsFirst: false })
+        .limit(500);
+      if (error) throw error;
+      return (data || []) as ProductionVideoHistory[];
+    },
+    [profile?.organization_id, profile?.role, supabase],
+  );
   const refreshHiringLeads = React.useCallback(async () => {
     if (!profile || !isAdministrativeRole(profile.role)) return false;
     const { data, error } = await supabase
@@ -7540,19 +7516,10 @@ export function OperatingSystem() {
     setNavigationRevision((value) => value + 1);
   };
   const signOut = async () => {
-    preserveAdminPreviewOnLogout.current = true;
-    updateNavigationState({ previewRole, editorPreviewId, clientPreviewId });
     setPreviewRole(null);
     setEditorPreviewId("");
     setClientPreviewId("");
-    const { error: signOutError } = await supabase.auth.signOut();
-    if (signOutError) {
-      preserveAdminPreviewOnLogout.current = false;
-      setPreviewRole(previewRole);
-      setEditorPreviewId(editorPreviewId);
-      setClientPreviewId(clientPreviewId);
-      setError(signOutError.message);
-    }
+    await supabase.auth.signOut();
   };
   const editorWorkspace = (initialSection: EditorWorkspaceSection) => (
     <EditorDashboard
@@ -7867,6 +7834,7 @@ export function OperatingSystem() {
           productionSnapshots={productionSnapshots}
           productionHistoricalClosures={productionHistoricalClosures}
           productionHistory={productionHistory}
+          onLoadProductionHistoryPeriod={loadProductionHistoryPeriod}
           transactions={transactions}
           editorPerformance={editorPerformance}
           editorActivity={editorActivity}
@@ -10747,6 +10715,14 @@ function EditorNewsWorkspace({
             <h3 className="text-2xl font-black uppercase tracking-[.18em] text-white sm:text-4xl">
               Editor del mes
             </h3>
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((open) => !open)}
+              aria-expanded={historyOpen}
+              className="mt-2 text-[10px] font-bold uppercase tracking-[.12em] text-amber-200 transition hover:text-amber-100"
+            >
+              {historyOpen ? "Ocultar reconocimientos" : "Ver reconocimientos"}
+            </button>
           </div>
         </div>
       </div>
@@ -19470,6 +19446,7 @@ function MonthlyProductionArchive({
   snapshots,
   closures,
   history,
+  onLoadPeriod,
   onOpenJob,
   onDelete,
 }: {
@@ -19477,6 +19454,7 @@ function MonthlyProductionArchive({
   snapshots: ProductionPeriodSnapshot[];
   closures: ProductionHistoricalMonthClosure[];
   history: ProductionVideoHistory[];
+  onLoadPeriod?: (periodKey: string) => Promise<ProductionVideoHistory[]>;
   onOpenJob?: (jobId: string) => void;
   onDelete?: (recordId: string) => Promise<boolean>;
 }) {
@@ -19504,13 +19482,67 @@ function MonthlyProductionArchive({
     savedPeriod || defaultPeriod,
   );
   const [historySearch, setHistorySearch] = React.useState("");
+  const [loadedHistoryByPeriod, setLoadedHistoryByPeriod] = React.useState<
+    Record<string, ProductionVideoHistory[]>
+  >({});
+  const [loadingPeriod, setLoadingPeriod] = React.useState<string | null>(null);
+  const [historyLoadError, setHistoryLoadError] = React.useState<{
+    periodKey: string;
+    message: string;
+  } | null>(null);
+  const [historyRetry, setHistoryRetry] = React.useState(0);
   React.useEffect(() => {
     if (!available.includes(selectedPeriod)) setSelectedPeriod(defaultPeriod);
   }, [available, defaultPeriod, selectedPeriod]);
   React.useEffect(() => {
     updateNavigationState({ production: { historyPeriod: selectedPeriod } });
   }, [selectedPeriod]);
-  const rows = history.filter((row) => row.period_key === selectedPeriod);
+  const currentPeriod = madridMonthKey();
+  React.useEffect(() => {
+    if (
+      selectedPeriod === currentPeriod ||
+      Object.prototype.hasOwnProperty.call(loadedHistoryByPeriod, selectedPeriod)
+    ) return;
+    if (!onLoadPeriod) return;
+    let cancelled = false;
+    setLoadingPeriod(selectedPeriod);
+    setHistoryLoadError(null);
+    void onLoadPeriod(selectedPeriod)
+      .then((periodRows) => {
+        if (!cancelled)
+          setLoadedHistoryByPeriod((previous) => ({
+            ...previous,
+            [selectedPeriod]: periodRows,
+          }));
+      })
+      .catch((error) => {
+        if (!cancelled)
+          setHistoryLoadError({
+            periodKey: selectedPeriod,
+            message:
+              error instanceof Error
+                ? error.message
+                : "No se pudo cargar el historial de este mes.",
+          });
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPeriod(null);
+      });
+    return () => { cancelled = true; };
+  }, [
+    currentPeriod,
+    historyRetry,
+    loadedHistoryByPeriod,
+    onLoadPeriod,
+    selectedPeriod,
+  ]);
+  const rows =
+    selectedPeriod === currentPeriod
+      ? history.filter((row) => row.period_key === selectedPeriod)
+      : loadedHistoryByPeriod[selectedPeriod] || [];
+  const isLoadingHistory = loadingPeriod === selectedPeriod;
+  const periodLoadError =
+    historyLoadError?.periodKey === selectedPeriod ? historyLoadError.message : null;
   const filteredRows = React.useMemo(() => {
     const term = historySearch.trim().toLocaleLowerCase("es-ES");
     if (!term) return rows;
@@ -19590,6 +19622,27 @@ function MonthlyProductionArchive({
           </span>
         </div>
       </Panel>
+      {isLoadingHistory ? (
+        <Panel className="p-8 text-center">
+          <p className="text-sm text-slate-300">
+            Cargando las entregas aprobadas de {formatPeriodLabel(selectedPeriod)}…
+          </p>
+        </Panel>
+      ) : periodLoadError ? (
+        <Panel className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <p className="text-sm text-rose-300">
+            No se pudo cargar {formatPeriodLabel(selectedPeriod)}: {periodLoadError}
+          </p>
+          <button
+            type="button"
+            onClick={() => setHistoryRetry((attempt) => attempt + 1)}
+            className="h-10 rounded-xl border border-white/[.1] px-4 text-sm text-white hover:bg-white/[.05]"
+          >
+            Reintentar
+          </button>
+        </Panel>
+      ) : (
+        <>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
           label="Vídeos aprobados"
@@ -19695,6 +19748,8 @@ function MonthlyProductionArchive({
         onOpenJob={onOpenJob}
         onDelete={onDelete}
       />
+        </>
+      )}
     </div>
   );
 }
@@ -23219,6 +23274,7 @@ function Operations({
   productionSnapshots,
   productionHistoricalClosures,
   productionHistory,
+  onLoadProductionHistoryPeriod,
   transactions = [],
   editorPerformance,
   editorActivity,
@@ -23284,6 +23340,9 @@ function Operations({
   productionSnapshots: ProductionPeriodSnapshot[];
   productionHistoricalClosures: ProductionHistoricalMonthClosure[];
   productionHistory: ProductionVideoHistory[];
+  onLoadProductionHistoryPeriod?: (
+    periodKey: string,
+  ) => Promise<ProductionVideoHistory[]>;
   transactions?: Transaction[];
   editorPerformance: EditorMonthlyPerformance[];
   editorActivity: EditorActivityEvent[];
@@ -23594,6 +23653,7 @@ function Operations({
           snapshots={productionSnapshots}
           closures={productionHistoricalClosures}
           history={productionHistory}
+          onLoadPeriod={onLoadProductionHistoryPeriod}
           onOpenJob={openHistoryDetail}
           onDelete={onDeleteHistoricalProductionRecord}
         />
