@@ -147,6 +147,83 @@ type ViewId =
   | "editor_news"
   | "editor_production"
   | "editor_performance";
+
+function isWorkspaceQuerySkipped(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "workspaceSkipped" in error &&
+      (error as { workspaceSkipped?: unknown }).workspaceSkipped === true,
+  );
+}
+
+function workspaceScopesForView(view: ViewId, role?: AppRole | null): string[] {
+  if (role === "editor") {
+    switch (view) {
+      case "inicio":
+        return ["production", "directory", "knowledge", "finance"];
+      case "editor_home":
+        return ["production", "directory", "ranking", "activity", "planning", "announcements", "notifications", "knowledge", "finance", "goals"];
+      case "editor_news":
+        return ["announcements", "notifications"];
+      case "editor_production":
+      case "operaciones":
+        return ["production", "clients", "directory", "ranking", "activity", "planning", "publication", "finance", "bonuses"];
+      case "editor_performance":
+        return ["production", "directory", "ranking", "activity", "finance", "goals"];
+      case "conocimiento":
+        return ["knowledge", "files", "directory"];
+      default:
+        return ["production", "directory"];
+    }
+  }
+  if (role === "client") {
+    return ["clients", "bonuses", "production", "publication"];
+  }
+
+  switch (view) {
+    case "inicio":
+      return ["clients", "directory", "production", "finance", "bonuses", "files", "knowledge", "organization", "announcements", "notifications"];
+    case "ceo":
+      return ["production", "finance", "finance_investments", "bonuses", "organization", "announcements", "clients", "directory"];
+    case "operaciones":
+      return ["production", "clients", "directory", "ranking", "finance", "bonuses", "activity", "planning", "publication"];
+    case "ingresos":
+      return ["clients", "client_details", "directory", "production", "finance", "bonuses"];
+    case "clientes":
+      return ["clients", "client_details", "directory", "production"];
+    case "bonos":
+      return ["bonuses", "clients", "client_details"];
+    case "finanzas":
+      return ["finance", "finance_investments", "bonuses", "clients", "client_details", "directory", "production"];
+    case "equipo":
+      return ["directory", "directory_details", "access", "activity", "planning", "ranking", "announcements", "production", "finance", "hiring"];
+    case "archivos":
+      return ["files", "clients", "directory", "production"];
+    case "crm":
+    case "contenido":
+      return [];
+    case "planificacion":
+      return ["planning", "production", "directory", "clients"];
+    case "conocimiento":
+      return ["knowledge", "files", "directory"];
+    case "ajustes":
+      return ["access", "directory", "directory_details", "clients", "client_details"];
+    case "nucleo":
+      return ["files", "knowledge", "access", "directory", "directory_details", "announcements"];
+    case "editor_home":
+      return ["production", "directory", "ranking", "finance", "activity", "planning", "announcements", "notifications", "knowledge", "goals"];
+    case "editor_news":
+      return ["announcements", "notifications"];
+    case "editor_production":
+      return ["production", "clients", "directory", "ranking", "finance", "activity", "planning", "publication", "bonuses"];
+    case "editor_performance":
+      return ["production", "directory", "ranking", "activity", "finance", "goals"];
+    default:
+      return ["production", "clients", "directory"];
+  }
+}
+
 type EditorWorkspaceSection =
   "summary" | "production" | "planner" | "performance" | "news";
 type Profile = {
@@ -2278,6 +2355,10 @@ export function OperatingSystem() {
     ProductionVideoHistory[]
   >([]);
   const [historyReloadVersion, setHistoryReloadVersion] = React.useState(0);
+  const productionHistoryCache = React.useRef(
+    new Map<string, { rows: ProductionVideoHistory[]; savedAt: number }>(),
+  );
+  const forceProductionHistoryRefresh = React.useRef(false);
   const [editorPerformance, setEditorPerformance] = React.useState<
     EditorMonthlyPerformance[]
   >([]);
@@ -2577,12 +2658,14 @@ export function OperatingSystem() {
     });
   }, []);
   const runRefresh = React.useCallback(
-    async (scopes: ReadonlySet<string> | null) => {
+    async (scopes: ReadonlySet<string> | null, preferCache: boolean) => {
       const epoch = refreshEpoch.current;
       const isCurrent = () => epoch === refreshEpoch.current;
       try {
         if (initialLoad.current) setLoading(true);
         setError("");
+        let user: { id: string } | null = null;
+        let current: Profile | null = null;
         const { data: storedSession, error: storedSessionError } =
           await supabase.auth.getSession();
         if (!isCurrent()) return;
@@ -2609,7 +2692,7 @@ export function OperatingSystem() {
         // or browser storage to decide which portal a person can open.
         const { data: auth, error: authError } = await supabase.auth.getUser();
         if (!isCurrent()) return;
-        const user = auth.user;
+        user = auth.user;
         if (!user) {
           // A timeout/offline response is not a sign-out. Keep the validated
           // workspace mounted instead of throwing away forms and local state.
@@ -2681,6 +2764,7 @@ export function OperatingSystem() {
             throw new Error(
               "No se pudieron cargar tus permisos. Reintenta la conexión.",
             );
+          lastProfile.current = null;
           setProfile(null);
           setAccessError(
             "Tu cuenta existe, pero aún no tiene un rol autorizado en NegoDigi.",
@@ -2689,7 +2773,7 @@ export function OperatingSystem() {
           setLoading(false);
           return;
         }
-        const current = profileData as Profile;
+        current = profileData as Profile;
         if (
           !profileData.active ||
           ["revoked", "archived"].includes(profileData.access_state)
@@ -2704,6 +2788,7 @@ export function OperatingSystem() {
           return;
         }
         if (!resolvePortalRole(current.role)) {
+          lastProfile.current = null;
           setProfile(null);
           setAccessError(
             "Tu cuenta tiene un rol no reconocido. El acceso se ha bloqueado por seguridad.",
@@ -2810,6 +2895,8 @@ export function OperatingSystem() {
               );
             });
         }
+        if (!user || !current) return;
+        if (scopes?.size === 0) return;
         const jobSelect = isAdministrativeRole(current.role)
           ? `id,client_id,editor_id,title,status,assigned_on,planned_on,due_on,delivered_on,created_at,clients(id,name),editors(id,name),${jobProductionJoin},job_financials(client_total,editor_total,tools_total,margin)`
           : `id,client_id,editor_id,title,status,assigned_on,planned_on,due_on,delivered_on,created_at,clients(id,name),editors(id,name),${jobProductionJoin}`;
@@ -2833,6 +2920,8 @@ export function OperatingSystem() {
             scopes,
             ["ranking"],
             120_000,
+            true,
+            preferCache,
           )
           .then((result) => {
             if (isCurrent() && !result.error) {
@@ -2852,6 +2941,8 @@ export function OperatingSystem() {
             scopes,
             ["ranking", "production"],
             120_000,
+            true,
+            preferCache,
           )
           .then((result) => {
             if (isCurrent() && !result.error) {
@@ -2927,6 +3018,8 @@ export function OperatingSystem() {
             scopes,
             ["clients"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":nucleoFileRows",
@@ -2943,6 +3036,8 @@ export function OperatingSystem() {
             scopes,
             ["files"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":knowledgeRows",
@@ -2956,6 +3051,8 @@ export function OperatingSystem() {
             scopes,
             ["knowledge"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":editorRows",
@@ -2969,6 +3066,8 @@ export function OperatingSystem() {
             scopes,
             ["directory"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":jobRows",
@@ -2986,6 +3085,8 @@ export function OperatingSystem() {
             scopes,
             ["production"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":bonusRows",
@@ -3001,6 +3102,8 @@ export function OperatingSystem() {
             scopes,
             ["bonuses", "production", "finance"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":bonusConfigRows",
@@ -3015,6 +3118,8 @@ export function OperatingSystem() {
             scopes,
             ["bonuses"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":bonusMovementRows",
@@ -3031,8 +3136,10 @@ export function OperatingSystem() {
                     })
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["bonuses", "production"],
+            ["bonuses"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":receivableRows",
@@ -3051,6 +3158,8 @@ export function OperatingSystem() {
             scopes,
             ["finance", "bonuses", "production"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":transactionRows",
@@ -3064,8 +3173,10 @@ export function OperatingSystem() {
                     .order("occurred_on")
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["finance", "bonuses", "production"],
+            ["finance"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":investmentRows",
@@ -3080,8 +3191,10 @@ export function OperatingSystem() {
                     .order("created_at", { ascending: false })
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["finance"],
+            ["finance_investments"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":investmentClientLinkRows",
@@ -3092,8 +3205,10 @@ export function OperatingSystem() {
                     .select("investment_id,client_id")
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["finance"],
+            ["finance_investments"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":investmentServiceRows",
@@ -3104,8 +3219,10 @@ export function OperatingSystem() {
                     .select("investment_id,service_name")
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["finance"],
+            ["finance_investments"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":investmentTransactionLinkRows",
@@ -3116,8 +3233,10 @@ export function OperatingSystem() {
                     .select("investment_id,transaction_id")
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["finance"],
+            ["finance_investments"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":rateRows",
@@ -3131,8 +3250,10 @@ export function OperatingSystem() {
                     .eq("active", true)
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["clients"],
+            ["client_details"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":contactRows",
@@ -3147,8 +3268,10 @@ export function OperatingSystem() {
                     .order("name")
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["clients"],
+            ["client_details"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":privateRows",
@@ -3159,8 +3282,10 @@ export function OperatingSystem() {
                     .select("client_id,email,phone,notes,tax_data")
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["clients"],
+            ["client_details"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":leadRows",
@@ -3172,8 +3297,10 @@ export function OperatingSystem() {
                     .order("created_at", { ascending: false })
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["clients"],
+            ["client_details"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":notificationRows",
@@ -3192,8 +3319,10 @@ export function OperatingSystem() {
                     .limit(100)
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["notifications", "production"],
+            ["notifications"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":periodRows",
@@ -3209,6 +3338,8 @@ export function OperatingSystem() {
             scopes,
             ["production"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":snapshotRows",
@@ -3222,6 +3353,8 @@ export function OperatingSystem() {
             scopes,
             ["production"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":historicalClosureRows",
@@ -3237,6 +3370,8 @@ export function OperatingSystem() {
             scopes,
             ["production"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":performanceRows",
@@ -3260,8 +3395,10 @@ export function OperatingSystem() {
                     .limit(2400)
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["production", "ranking"],
+            ["ranking"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":activityRows",
@@ -3280,6 +3417,8 @@ export function OperatingSystem() {
             scopes,
             ["activity"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":planningRows",
@@ -3296,8 +3435,10 @@ export function OperatingSystem() {
                     .order("starts_at", { ascending: true })
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["planning", "production"],
+            ["planning"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":publicationSlotRows",
@@ -3310,8 +3451,10 @@ export function OperatingSystem() {
                 .order("scheduled_for", { ascending: true })
                 .limit(2000),
             scopes,
-            ["production", "clients"],
+            ["production", "publication"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":editorWorkScheduleRows",
@@ -3329,8 +3472,10 @@ export function OperatingSystem() {
                     .limit(2000)
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["activity", "directory"],
+            ["activity"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":editorPrivateRows",
@@ -3341,8 +3486,10 @@ export function OperatingSystem() {
                     .select("editor_id,email,phone")
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["directory"],
+            ["directory_details"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":editorPaymentRows",
@@ -3358,8 +3505,10 @@ export function OperatingSystem() {
                     .order("created_at", { ascending: false })
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["finance", "production"],
+            ["finance"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":editorFinancialGoalRows",
@@ -3377,6 +3526,8 @@ export function OperatingSystem() {
             scopes,
             ["goals"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":dailyRankingPointRows",
@@ -3393,6 +3544,8 @@ export function OperatingSystem() {
             scopes,
             ["ranking"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":weeklyRecognitionRows",
@@ -3411,6 +3564,8 @@ export function OperatingSystem() {
             scopes,
             ["ranking"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":communicationReviewRows",
@@ -3428,6 +3583,8 @@ export function OperatingSystem() {
             scopes,
             ["ranking"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":rankingSettingsRow",
@@ -3446,6 +3603,8 @@ export function OperatingSystem() {
             scopes,
             ["ranking"],
             120_000,
+            true,
+            preferCache,
           ),
           rewardRowsPromise,
           queryCache.load(
@@ -3464,6 +3623,8 @@ export function OperatingSystem() {
             scopes,
             ["ranking"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":awardRows",
@@ -3482,6 +3643,8 @@ export function OperatingSystem() {
             scopes,
             ["ranking"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":announcementRows",
@@ -3508,6 +3671,8 @@ export function OperatingSystem() {
             scopes,
             ["announcements"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":announcementReadRows",
@@ -3522,6 +3687,8 @@ export function OperatingSystem() {
             scopes,
             ["announcements"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":organizationTaskRows",
@@ -3539,6 +3706,8 @@ export function OperatingSystem() {
             scopes,
             ["organization"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":hiringLeadRows",
@@ -3559,6 +3728,8 @@ export function OperatingSystem() {
             scopes,
             ["hiring"],
             120_000,
+            true,
+            preferCache,
           ),
           queryCache.load(
             user.id + ":userRows",
@@ -3569,8 +3740,10 @@ export function OperatingSystem() {
                   })
                 : Promise.resolve({ data: [], error: null }),
             scopes,
-            ["directory"],
+            ["access"],
             120_000,
+            true,
+            preferCache,
           ),
           personalRankingRowsPromise,
           editorTeamRankingRowsPromise,
@@ -3626,7 +3799,9 @@ export function OperatingSystem() {
           ["posición personal", personalRankingRows.error],
           ["ranking del equipo", editorTeamRankingRows.error],
         ] as const;
-        const queryError = failedQueries.find(([, query]) => query);
+        const queryError = failedQueries.find(
+          ([, query]) => query && !isWorkspaceQuerySkipped(query),
+        );
         if (queryError)
           setError(
             `No se pudo actualizar ${queryError[0]}: ${queryError[1]?.message || "error desconocido"}`,
@@ -3889,21 +4064,66 @@ export function OperatingSystem() {
     [runRefresh],
   );
   const refresh = React.useCallback(
-    (scope?: string | string[]) =>
-      refreshCoordinator.refresh(scope).then(() => {
-        setHistoryReloadVersion((version) => version + 1);
+    (
+      scope?: string | string[],
+      options?: { preferCache?: boolean },
+    ) =>
+      refreshCoordinator.refresh(scope, options).then(() => {
+        const includesProduction =
+          scope === undefined ||
+          (typeof scope === "string"
+            ? scope === "production"
+            : scope.includes("production"));
+        if (includesProduction && !options?.preferCache) {
+          forceProductionHistoryRefresh.current = true;
+          setHistoryReloadVersion((version) => version + 1);
+        }
       }),
     [refreshCoordinator],
   );
   React.useEffect(() => {
+    if (!profile) return;
+    const dataRole =
+      previewRole === "Editor"
+        ? "editor"
+        : previewRole === "Cliente"
+          ? "client"
+          : profile.role;
+    const scopes = workspaceScopesForView(view, dataRole);
+    if (scopes.length > 0) void refresh(scopes, { preferCache: true });
+  }, [profile?.organization_id, profile?.role, previewRole, refresh, view]);
+  React.useEffect(() => {
     if (
       !profile ||
       !["owner", "admin", "editor"].includes(profile.role) ||
-      !["operaciones", "editor_home", "editor_performance"].includes(view)
+      ![
+        "operaciones",
+        "equipo",
+        "editor_home",
+        "editor_performance",
+        "editor_production",
+      ].includes(view)
     ) return;
 
     let cancelled = false;
     const periodKey = madridMonthKey();
+    const cacheKey = [
+      profile.organization_id,
+      profile.role,
+      profile.editor_id || "all-editors",
+      periodKey,
+    ].join(":");
+    const cached = productionHistoryCache.current.get(cacheKey);
+    const shouldForceRefresh = forceProductionHistoryRefresh.current;
+    forceProductionHistoryRefresh.current = false;
+    if (
+      !shouldForceRefresh &&
+      cached &&
+      Date.now() - cached.savedAt < 120_000
+    ) {
+      setProductionHistory(cached.rows);
+      return;
+    }
     void (async () => {
       try {
         const { data, error } = await supabase
@@ -3918,7 +4138,16 @@ export function OperatingSystem() {
           console.warn("[workspace.production-history]", error.message);
           return;
         }
-        setProductionHistory((data || []) as ProductionVideoHistory[]);
+        const rows = (data || []) as ProductionVideoHistory[];
+        productionHistoryCache.current.set(cacheKey, {
+          rows,
+          savedAt: Date.now(),
+        });
+        if (productionHistoryCache.current.size > 6) {
+          const oldestKey = productionHistoryCache.current.keys().next().value;
+          if (oldestKey) productionHistoryCache.current.delete(oldestKey);
+        }
+        setProductionHistory(rows);
       } catch (error) {
         if (!cancelled) console.warn("[workspace.production-history]", error);
       }
@@ -3972,7 +4201,7 @@ export function OperatingSystem() {
     return true;
   }, [profile, setError, setNotice, supabase]);
   React.useEffect(() => {
-    const initialRefresh = window.setTimeout(() => void refresh(), 0);
+    const initialRefresh = window.setTimeout(() => void refresh([]), 0);
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       const nextIdentity = session?.user.id || null;
       if (event === "INITIAL_SESSION") {
@@ -3986,6 +4215,8 @@ export function OperatingSystem() {
       sessionIdentity.current = nextIdentity;
       refreshEpoch.current += 1;
       lastProfile.current = null;
+      productionHistoryCache.current.clear();
+      forceProductionHistoryRefresh.current = false;
       maintenanceAt.current = 0;
       accessRecordedFor.current = null;
       queryCache.clear();
@@ -3997,7 +4228,7 @@ export function OperatingSystem() {
       setConnectionIssue(null);
       initialLoad.current = Boolean(nextIdentity);
       setLoading(Boolean(nextIdentity));
-      window.setTimeout(() => void refresh(), 0);
+      window.setTimeout(() => void refresh([]), 0);
     });
     return () => {
       window.clearTimeout(initialRefresh);

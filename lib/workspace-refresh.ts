@@ -1,11 +1,15 @@
 export type RefreshScopes = ReadonlySet<string> | null;
 
 type Waiter = { resolve: () => void; reject: (error: unknown) => void };
-type RefreshBatch = { scopes: Set<string> | null; waiters: Waiter[] };
+type RefreshBatch = {
+  scopes: Set<string> | null;
+  preferCache: boolean;
+  waiters: Waiter[];
+};
 
 /** Serialize refreshes and merge requests received while a refresh is running. */
 export function createRefreshCoordinator(
-  run: (scopes: RefreshScopes) => Promise<void>,
+  run: (scopes: RefreshScopes, preferCache: boolean) => Promise<void>,
 ) {
   let running = false;
   let pending: RefreshBatch | null = null;
@@ -17,7 +21,7 @@ export function createRefreshCoordinator(
       const batch: RefreshBatch = pending;
       pending = null;
       try {
-        await run(batch.scopes);
+        await run(batch.scopes, batch.preferCache);
         batch.waiters.forEach(({ resolve }) => resolve());
       } catch (error) {
         batch.waiters.forEach(({ reject }) => reject(error));
@@ -27,16 +31,25 @@ export function createRefreshCoordinator(
   }
 
   return {
-    refresh(scope?: string | readonly string[]): Promise<void> {
+    refresh(
+      scope?: string | readonly string[],
+      options?: { preferCache?: boolean },
+    ): Promise<void> {
       if (disposed) return Promise.reject(new Error("Refresh coordinator disposed"));
       const scopes = scope === undefined ? null : new Set(typeof scope === "string" ? [scope] : scope);
       return new Promise<void>((resolve, reject) => {
         if (!pending) {
-          pending = { scopes, waiters: [] };
+          pending = {
+            scopes,
+            preferCache: options?.preferCache === true,
+            waiters: [],
+          };
         } else if (scopes === null) {
           pending.scopes = null;
+          pending.preferCache = false;
         } else if (pending.scopes !== null) {
           scopes.forEach((value) => pending!.scopes!.add(value));
+          pending.preferCache = pending.preferCache && options?.preferCache === true;
         }
         pending.waiters.push({ resolve, reject });
         if (!running) void drain();
@@ -70,14 +83,35 @@ export function createWorkspaceQueryCache(now: () => number = Date.now) {
       scopes: RefreshScopes,
       groups: Iterable<string>,
       maxAgeMs = 30_000,
+      skipIfUnscoped = false,
+      preferFreshCache = false,
     ): Promise<Awaited<T>> {
       const cached = entries.get(key);
       const invalidated = scopes === null || Array.from(groups).some((group) => scopes.has(group));
+      const existing = inFlight.get(key);
+      if (skipIfUnscoped && scopes !== null && !invalidated) {
+        // Do not wait for or re-apply data from another page. The component
+        // state already preserves that page's last successful result.
+        return {
+          data: [],
+          error: {
+            workspaceSkipped: true,
+            message: "Query skipped because its workspace is not active.",
+          },
+        } as Awaited<T>;
+      }
+      if (existing) return existing as Promise<Awaited<T>>;
+      if (
+        preferFreshCache &&
+        invalidated &&
+        cached &&
+        now() - cached.savedAt < maxAgeMs
+      ) {
+        return cached.value as Awaited<T>;
+      }
       if (!invalidated && cached && now() - cached.savedAt < maxAgeMs) {
         return cached.value as Awaited<T>;
       }
-      const existing = inFlight.get(key);
-      if (existing) return existing as Promise<Awaited<T>>;
 
       const requestGeneration = generation;
       // Deferring factory invocation also lets synchronous exceptions follow the
